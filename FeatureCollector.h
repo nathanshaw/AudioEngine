@@ -65,6 +65,8 @@ class FeatureCollector {
         double getPeak();
         double getPeakPosDelta() {calculatePeak();return peak_pos_delta;};
         double getPeakAvg();
+        double getPeakMin(){return peak_min;};
+        double getPeakMax(){return peak_max;};
         void   resetPeakAvgLog();
         void   printPeakVals();
         double peak_pos_delta;
@@ -117,6 +119,10 @@ class FeatureCollector {
         void calculatePeak();
         double peak_val;
         double peak_scaler = 1.0;
+
+        double peak_min = 9999.9;
+        double peak_max = 0.0;
+
         double peak_totals = 0;
         unsigned long peak_readings = 0;
         elapsedMillis last_peak_reset;
@@ -261,6 +267,11 @@ void FeatureCollector::calculatePeak() {
         dprintln(PRINT_PEAK_DEBUG, peak_pos_delta);
         peak_totals += peak_val;
         peak_readings++;
+        if (peak_val > peak_max) {
+            peak_max = peak_val;
+        } else if (peak_val < peak_min) {
+            peak_min = peak_val;
+        }
     }
 }
 
