@@ -29,7 +29,7 @@ class FFTManager1024 {
     public:
         //////////// init ///////////////
         FFTManager1024(String _name);
-        void linkFFT(AudioAnalyzeFFT1024*r);
+        void linkFFT(AudioAnalyzeFFT1024*r, bool w);
 
         // printers
         void   printFFTVals();
@@ -53,13 +53,9 @@ class FFTManager1024 {
         double getSpectralFlux();
 
         // setters
-        void setCalculateCentroid(bool v) {calculate_centroid = v;};
-        void setCentroidActive(bool s) { calculate_centroid = s;}; 
-
+        void setupCentroid(bool v, double min, double max);
         void setCalculateFlux(bool v) {calculate_flux= v;};
         void setFluxActive(bool s) { calculate_flux = s;}; 
-
-        void setFFTScaler(double s) {fft_scaler = s;};
 
         void calculateSpectralFlux();
 
@@ -68,9 +64,10 @@ class FFTManager1024 {
         bool fft_active = true;
         AudioAnalyzeFFT1024*fft_ana;
 
+        double raw_fft_vals[NUM_FFT_BINS];
+        double fft_max_vals[NUM_FFT_BINS];
         double fft_vals[NUM_FFT_BINS];
         double last_fft_vals[NUM_FFT_BINS];
-        double fft_scaler = 1.0;
 
         void calculateFFT();
 
@@ -84,19 +81,29 @@ class FFTManager1024 {
         double calculateCentroid();
         double centroid = 0.0;
         double last_centroid = 0.0;
+        int centroid_min_bin = 0;
+        int centroid_max_bin = NUM_FFT_BINS;
 
         bool calculate_flux = false;
         double calculateFlux();
         double flux = 0.0;
         elapsedMillis last_fft_reading;
+        bool whitening_active = false;
+        double whitening_floor = 0.0;
 };
 
 FFTManager1024::FFTManager1024(String _id) {
     name = _id;
 }
 
-uint32_t getBinsMidFreq256(int bin) {
-    return (uint32_t)(bin * 172 + 86);
+void FFTManager1024::setupCentroid(bool v, double min, double max) {
+    calculate_centroid = v;
+    centroid_min_bin = uint16_t(min / 43);
+    centroid_max_bin = uint16_t(max / 43);
+    Serial.print("Now calculating the centroid for energy in bins ");
+    Serial.print(centroid_min_bin);
+    Serial.print(" through ");
+    Serial.println(centroid_max_bin);
 }
 
 uint32_t getBinsMidFreq1024(int bin) {
@@ -135,13 +142,6 @@ void FFTManager1024::printFFTVals() {
             }
         }
     }
-    /*
-    if (PRINT_HIGHEST_ENERGY_BIN) {
-        Serial.print("Bin with highest energy: "); Serial.print(highest_energy_idx);Serial.print(" = ");
-        Serial.print(fft_vals[highest_energy_idx]);
-        printFreqRangeOfBin(highest_energy_idx, max_bin);
-    }
-    */
     if (calculate_flux == true && PRINT_FLUX_VALS) {
         Serial.print("flux: ");Serial.print(flux);Serial.println();
     }
@@ -150,10 +150,11 @@ void FFTManager1024::printFFTVals() {
     }
 }
 
-void FFTManager1024::linkFFT(AudioAnalyzeFFT1024*r) {
+void FFTManager1024::linkFFT(AudioAnalyzeFFT1024*r, bool w) {
     fft_ana = r;
     fft_ana->averageTogether(4); // average together the readings from 10 FFT's before available() returns true, normally produces over 300 fft per second, this will be closer to 30
     fft_active = true;
+    whitening_active = true;
 };
 
 double FFTManager1024::getRelativeEnergy(uint16_t idx) {
@@ -221,12 +222,12 @@ double FFTManager1024::getSpectralFlux() {
 /////////////// Calculate Features //////////////////////////////
 double FFTManager1024::calculateCentroid() {
     double mags = 0.0;
-    for (int i = 1; i < NUM_FFT_BINS; i++) {
+    for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin
         // then all it to the total cent value
         // we also have to remove the effect the FTT_SCALER has on the bins stored energy
-        mags += fft_vals[i] * getBinsMidFreq1024(i) / fft_scaler;
+        mags += raw_fft_vals[i] * getBinsMidFreq1024(i);
     }
     last_centroid = centroid;
     centroid = mags;
@@ -287,9 +288,23 @@ void FFTManager1024::calculateFFT() {
         }
         for (int i = 0; i < NUM_FFT_BINS; i++) {
             fft_vals[i] = fft_ana->read(i);
+            raw_fft_vals[i] = fft_vals[i];
+            if (whitening_active) {
+                if (fft_vals[i] > fft_max_vals[i]) {
+                    fft_max_vals[i] = fft_vals[i];
+                } else {
+                    // ensure that the max values decay over time to prevent issues
+                    fft_max_vals[i] = fft_max_vals[i] * 0.99;
+                    // then make sure that the adjusted value is not less than the floor
+                    if (fft_max_vals[i] < whitening_floor) {
+                        fft_max_vals[i] = whitening_floor;
+                    }
+                }
+                fft_vals[i] = fft_vals[i] / fft_max_vals[i];
+            }
         }
         for (int i = 0; i < NUM_FFT_BINS; i++) {
-            fft_vals[i] *= fft_scaler;
+            // fft_vals[i] *= fft_scaler;
             fft_tot_energy += fft_vals[i];
         }
         if (calculate_centroid == true) {calculateCentroid();};
@@ -301,6 +316,7 @@ void FFTManager1024::calculateFFT() {
         last_fft_reading = 0;
     }
 }
+
 
 double getHighestEnergyIdx(double array[], int start, int end) {
     int highest = -1;

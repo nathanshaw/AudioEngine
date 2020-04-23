@@ -45,12 +45,12 @@ class FeatureCollector {
         double gain = 1.0;
         double min_gain = 1.0;
         double max_gain = 1.0;
-        void updateGain(double g);
-        bool ampActive() {return amp_active;};
-        void linkAmplifier(AudioAmplifier * amp, double low, double high);
+        void   updateGain(double g);
+        bool   ampActive() {return amp_active;};
+        void   linkAmplifier(AudioAmplifier * amp, double low, double high);
 
         //////////////// RMS /////////////////////////
-        void linkRMS(AudioAnalyzeRMS *r, double s, bool print);
+        void   linkRMS(AudioAnalyzeRMS *r, double s, bool print);
         double getRMS();
         double getRMSPosDelta(){return rms_pos_delta;};
         double getRMSAvg();
@@ -60,7 +60,7 @@ class FeatureCollector {
         void   printRMSVals();
 
         //////////////// Peak /////////////////////////
-        void linkPeak(AudioAnalyzePeak *r, double s, bool print);
+        void   linkPeak(AudioAnalyzePeak *r, double s, bool print);
         bool   isPeakActive(){ return peak_active;};
         double getPeak();
         double getPeakPosDelta() {calculatePeak();return peak_pos_delta;};
@@ -86,7 +86,6 @@ class FeatureCollector {
         bool testMicrophonePeak();
 
         /////////////// General //////////////////////////
-
         String name = "";
         bool microphone_active = true;
         elapsedMillis last_update_timer;
