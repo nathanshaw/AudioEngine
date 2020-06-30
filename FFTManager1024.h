@@ -58,6 +58,7 @@ class FFTManager1024 {
         void setFluxActive(bool s) { calculate_flux = s;}; 
 
         void calculateSpectralFlux();
+        void updateFFT(){calculateFFT();};
 
     private:
         String name = "";
@@ -158,7 +159,7 @@ void FFTManager1024::linkFFT(AudioAnalyzeFFT1024*r, bool w) {
 };
 
 double FFTManager1024::getRelativeEnergy(uint16_t idx) {
-    calculateFFT();
+    // calculateFFT();
     if (fft_tot_energy > 0) {
         double val = 0.0;
         val = fft_vals[idx] / fft_tot_energy;
@@ -169,28 +170,35 @@ double FFTManager1024::getRelativeEnergy(uint16_t idx) {
 }
 
 double FFTManager1024::getFFTTotalEnergy() {
-    calculateFFT();
+    // calculateFFT();
     if (fft_active) {
         return fft_tot_energy;
     }
     Serial.println("ERROR  - FFT IS NOT AN ACTIVE AUDIO FEATURE : "); Serial.println(name);
-    return -1.0;
+    return 0.0;
 }
 
 
 double FFTManager1024::getFFTRangeByIdx(uint16_t s, uint16_t e) {
-    calculateFFT();
+    // calculateFFT();
     if (fft_active) {
-        return fft_ana->read(s, e);
+        double sum = 0.0;
+        for (int i = s; i <= e; i++){
+            sum += fft_vals[i];
+        }
+        return sum / (e - s + 1);
     }
-    return -1.0;
+    return 0.0;
 }
 
 double FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
-    calculateFFT();
+    // calculateFFT();
     if (fft_active) {
         uint16_t start_idx = (uint16_t)(s / 43);
         uint16_t end_idx = (uint16_t)(e / 43);
+        Serial.print(start_idx);
+        Serial.print(" - - ");
+        Serial.println(end_idx);
         return fft_ana->read(start_idx, end_idx);
     }
     return -1.0;
@@ -213,7 +221,7 @@ double FFTManager1024::calculateFlux() {
 }
 
 double FFTManager1024::getSpectralFlux() {
-    calculateFFT();
+    // calculateFFT();
     dprint(PRINT_FLUX_VALS, "flux: ");
     dprintln(PRINT_FLUX_VALS, flux);
     return flux;
@@ -255,12 +263,12 @@ double FFTManager1024::getCentroidNegDelta() {
 }
 
 double FFTManager1024::getCentroid() {
-    calculateFFT();
+    // calculateFFT();
     return centroid;
 }
 
 double FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
-    calculateFFT();
+    // calculateFFT();
     double mags = 0.0;
     for (int i = min; i < max; i++) {
         // take the magnitude of all the bins
