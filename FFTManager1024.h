@@ -5,24 +5,24 @@
 
 #define NUM_FFT_BINS 512
 
-#ifndef PRINT_FLUX_VALS 
-#define PRINT_FLUX_VALS 1
+#ifndef P_FLUX_VALS 
+#define P_FLUX_VALS 0
 #endif
 
-#ifndef PRINT_FFT_DEBUG
-#define PRINT_FFT_DEBUG 1
+#ifndef P_FFT_DEBUG
+#define P_FFT_DEBUG 0
 #endif
 
-#ifndef PRINT_CENTROID_VALS
-#define PRINT_CENTROID_VALS 1
+#ifndef P_CENTROID_VALS
+#define P_CENTROID_VALS 0
 #endif
 
 #ifndef SMOOTH_CENTROID 
 #define SMOOTH_CENTROID 1
 #endif
 
-#ifndef PRINT_FFT_VALS
-#define PRINT_FFT_VALS 0 
+#ifndef P_FFT_VALS
+#define P_FFT_VALS 0 
 #endif
 
 class FFTManager1024 {
@@ -37,8 +37,9 @@ class FFTManager1024 {
         // getters
         double getFFTRangeByIdx(uint16_t s, uint16_t e);
         double getFFTRangeByFreq(uint32_t s, uint32_t e);
-        int    getHighestEnergyBin();
-        int    getHighestEnergyBin(int start, int end);
+        int    getHighestEnergyIdx(int start, int end);
+        int    getHighestEnergyIdx();
+        int    getHighestEnergyIdx(double array[], int start, int end);
         double getRelativeEnergy(uint16_t);
         double getFFTTotalEnergy();
         double getRelativeBinPos() {return relative_bin_pos;};
@@ -124,9 +125,9 @@ void printFreqRangeOfBin1024(int idx) {
 }
 
 void FFTManager1024::printFFTVals() {
-    if (fft_active && (PRINT_FFT_VALS || PRINT_FLUX_VALS || PRINT_CENTROID_VALS)) {
+    if (fft_active && (P_FFT_VALS || P_FLUX_VALS || P_CENTROID_VALS)) {
         Serial.print(name); Serial.print(" FFT vals\t");
-        if (PRINT_FFT_VALS) {
+        if (P_FFT_VALS) {
             // if (USE_SCALED_FFT) {Serial.print("Scaled ");}
             uint8_t w = 12;
             for (int l  = 0; l < w; l++) {
@@ -143,10 +144,10 @@ void FFTManager1024::printFFTVals() {
             }
         }
     }
-    if (calculate_flux == true && PRINT_FLUX_VALS) {
+    if (calculate_flux == true && P_FLUX_VALS) {
         Serial.print("flux: ");Serial.print(flux);Serial.println();
     }
-    if (calculate_centroid == true && PRINT_CENTROID_VALS) {
+    if (calculate_centroid == true && P_CENTROID_VALS) {
         Serial.print("centroid: ");Serial.println(centroid);
     }
 }
@@ -215,15 +216,15 @@ double FFTManager1024::calculateFlux() {
         }
     }
     else {
-        dprintln(PRINT_FFT_DEBUG, "last_fft_vals[0] is equal to zero");
+        dprintln(P_FFT_DEBUG, "last_fft_vals[0] is equal to zero");
     }
     return flux;
 }
 
 double FFTManager1024::getSpectralFlux() {
     // calculateFFT();
-    dprint(PRINT_FLUX_VALS, "flux: ");
-    dprintln(PRINT_FLUX_VALS, flux);
+    dprint(P_FLUX_VALS, "flux: ");
+    dprintln(P_FLUX_VALS, flux);
     return flux;
 }
 
@@ -239,8 +240,8 @@ double FFTManager1024::calculateCentroid() {
     }
     last_centroid = centroid;
     centroid = mags;
-    dprint(PRINT_CENTROID_VALS, "centroid : ");
-    dprintln(PRINT_CENTROID_VALS, centroid);
+    dprint(P_CENTROID_VALS, "centroid : ");
+    dprintln(P_CENTROID_VALS, centroid);
     return centroid;
 }
 
@@ -276,18 +277,18 @@ double FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
         // then all it to the total cent value
         mags += fft_vals[i] * getBinsMidFreq1024(i);
     }
-    dprint(PRINT_CENTROID_VALS, "centroid : ");
-    dprintln(PRINT_CENTROID_VALS, mags);
+    dprint(P_CENTROID_VALS, "centroid : ");
+    dprintln(P_CENTROID_VALS, mags);
     return mags;
 }
 
 void FFTManager1024::calculateFFT() {
     if (fft_active && fft_ana->available() == true) {
-        dprint(PRINT_FFT_DEBUG, name);
-        dprint(PRINT_FFT_DEBUG, " FFT Available, ");
-        dprint(PRINT_FFT_DEBUG, " last FFT reading was ");
-        dprint(PRINT_FFT_DEBUG, (uint32_t)last_fft_reading);
-        dprintln(PRINT_FFT_DEBUG, " ms ago");
+        dprint(P_FFT_DEBUG, name);
+        dprint(P_FFT_DEBUG, " FFT Available, ");
+        dprint(P_FFT_DEBUG, " last FFT reading was ");
+        dprint(P_FFT_DEBUG, (uint32_t)last_fft_reading);
+        dprintln(P_FFT_DEBUG, " ms ago\n");
         fft_tot_energy = 0.0;
         if (calculate_flux == true) { // only do this if we need to in order to save time
             for (int i = 0; i < NUM_FFT_BINS; i++) {
@@ -318,7 +319,7 @@ void FFTManager1024::calculateFFT() {
         if (calculate_centroid == true) {calculateCentroid();};
         if (calculate_centroid == true && SMOOTH_CENTROID == true) {centroid = (centroid += last_centroid) * 0.5;};
         if (calculate_flux == true) {calculateFlux();};
-        if (PRINT_FFT_DEBUG) {
+        if (P_FFT_DEBUG) {
           printFFTVals();
         }
         last_fft_reading = 0;
@@ -326,7 +327,7 @@ void FFTManager1024::calculateFFT() {
 }
 
 
-double getHighestEnergyIdx(double array[], int start, int end) {
+int FFTManager1024::getHighestEnergyIdx(double array[], int start, int end) {
     int highest = -1;
     double h_val = 0.0;
     for (int i = start; i <= end ; i++) {
@@ -336,6 +337,14 @@ double getHighestEnergyIdx(double array[], int start, int end) {
         }
     }
     return highest;
+}
+
+int FFTManager1024::getHighestEnergyIdx(int start, int end){
+    return getHighestEnergyIdx(fft_vals, start, end);
+}
+
+int FFTManager1024::getHighestEnergyIdx(){
+    return getHighestEnergyIdx(fft_vals, min_bin, max_bin);
 }
 
 #endif // feature_Collector_h
