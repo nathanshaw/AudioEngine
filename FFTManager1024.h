@@ -51,7 +51,7 @@ class FFTManager1024 {
         double getCentroidPosDelta();
         double getCentroidNegDelta();
 
-        double getSpectralFlux();
+        double getFlux();
 
         // setters
         void setupCentroid(bool v, double min, double max);
@@ -221,7 +221,7 @@ double FFTManager1024::calculateFlux() {
     return flux;
 }
 
-double FFTManager1024::getSpectralFlux() {
+double FFTManager1024::getFlux() {
     // calculateFFT();
     dprint(P_FLUX_VALS, "flux: ");
     dprintln(P_FLUX_VALS, flux);

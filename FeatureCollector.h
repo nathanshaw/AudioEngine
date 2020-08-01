@@ -31,6 +31,11 @@
 class FeatureCollector {
     public:
         FeatureCollector(String _id);
+        /////////////// General //////////////////////////
+        String name = "";
+        bool microphone_active[2] = {true, true};
+        elapsedMillis last_update_timer;
+
         /////////////////// Microphone Testing /////////////////
         bool testMicrophone();
 
@@ -39,7 +44,7 @@ class FeatureCollector {
 
         ////////////////// Getting Functions ///////////////////
         String getName() {return name;};
-        bool isActive() {return microphone_active;};
+        bool isActive();
 
         //////////////// Gain Tracking /////////////////////////
         double gain = 1.0;
@@ -87,10 +92,6 @@ class FeatureCollector {
         bool testMicrophoneRMS();
         bool testMicrophonePeak();
 
-        /////////////// General //////////////////////////
-        String name = "";
-        bool microphone_active = true;
-        elapsedMillis last_update_timer;
 
         //////////////// Gain Tracking ///////////////
         AudioAmplifier *amp_ana[4];
@@ -103,7 +104,8 @@ class FeatureCollector {
         // AudioAmplifier *gain_ana[4];
 
         //////////////// RMS /////////////////////////
-        AudioAnalyzeRMS *rms_ana;
+        AudioAnalyzeRMS *rms_ana[2];
+        uint8_t num_rms_anas = 0;
         bool rms_active = false;
         void calculateRMS();
         double rms_val;
@@ -114,7 +116,8 @@ class FeatureCollector {
         elapsedMillis last_rms_reset;
 
         //////////////// Peak /////////////////////////
-        AudioAnalyzePeak *peak_ana;
+        AudioAnalyzePeak *peak_ana[2];
+        uint8_t num_peak_anas = 0;
         bool peak_active = false;
         void calculatePeak();
         double peak_val;
@@ -130,17 +133,23 @@ class FeatureCollector {
 
 void FeatureCollector::linkPeak(AudioAnalyzePeak *r, double s, bool print) {
     print_peak = print;
-    peak_ana = r;
+    peak_ana[num_peak_anas] = r;
+    num_peak_anas++;
     peak_active = true;
     peak_scaler = s;
 };
 
 void FeatureCollector::linkRMS(AudioAnalyzeRMS *r, double s, bool print) {
     print_rms = print;
-    rms_ana = r;
+    rms_ana[num_rms_anas] = r;
+    num_rms_anas++;
     rms_active = true;
     rms_scaler = s;
 };
+
+bool FeatureCollector::isActive() {
+ return microphone_active[0] || microphone_active[1];
+}
 
 void FeatureCollector::linkAmplifier(AudioAmplifier * amp, double low, double high) { 
     gain_lower_limit = low;
@@ -183,58 +192,64 @@ void FeatureCollector::updateGain(double g) {
 
 bool FeatureCollector::testMicrophoneRMS() {
     // go through and gather 10 features from each channel and make sure it is picking up audio
-    uint8_t readings = 0;
-    double values = 0.0;
-    unsigned long a_time = millis();
-    Serial.print("Testing ");Serial.print(name);Serial.println(" Microphone using RMS");
-    while (readings < 10 && millis() < a_time + MICROPHONE_TEST_DURATION) {
-        if (rms_ana->available()) {
-            values += rms_ana->read();
-            readings++;
-            Serial.print(". ");
-            delay(20);
+    for (int i = 0; i < num_rms_anas; i++) {
+        uint8_t readings = 0;
+        double values = 0.0;
+        unsigned long a_time = millis();
+        Serial.print("Testing ");Serial.print(i);
+        Serial.println(" Microphone using RMS");
+        while (readings < 10 
+                && millis() < a_time + MICROPHONE_TEST_DURATION) {
+            if (rms_ana[i]->available()) {
+                values += rms_ana[i]->read();
+                readings++;
+                Serial.print(". ");
+                delay(20);
+            }
         }
+        if (values > 0) {
+            Serial.println();
+            Serial.print(name);
+            Serial.println(" Microphone is good");
+            microphone_active[i] = true;
+            return true;
+        } 
+        Serial.println("\nERROR, ");
+        Serial.print(name);Serial.println(" Microphone does not work");
+        printDivideLn();
+        microphone_active[i] = false;
     }
-    if (values > 0) {
-        Serial.println();
-        Serial.print(name);
-        Serial.println(" Microphone is good");
-        microphone_active = true;
-        return true;
-    } 
-    Serial.println("\nERROR, ");
-    Serial.print(name);Serial.println(" Microphone does not work");
-    printDivideLn();
-    microphone_active = false;
     return false;
 }
 
 bool FeatureCollector::testMicrophonePeak() {
     // go through and gather 10 features from each channel and make sure it is picking up audio
-    uint8_t readings = 0;
-    double values = 0.0;
-    unsigned long a_time = millis();
-    printDivide();
-    Serial.print("Testing ");Serial.print(name);Serial.println(" Microphone using Peak");
-    while (readings < 10 && millis() < a_time + MICROPHONE_TEST_DURATION) {
-        if (peak_ana->available()) {
-            values += peak_ana->read();
-            readings++;
-            Serial.print(". ");
-            delay(20);
+    for (int i = 0; i < num_peak_anas; i++) {
+        uint8_t readings = 0;
+        double values = 0.0;
+        unsigned long a_time = millis();
+        printDivide();
+        Serial.print("Testing ");Serial.print(name);Serial.println(" Microphone using Peak");
+        while (readings < 10 && millis() < a_time + MICROPHONE_TEST_DURATION) {
+            if (peak_ana[i]->available()) {
+                values += peak_ana[i]->read();
+                readings++;
+                Serial.print(". ");
+                delay(20);
+            }
         }
-    }
-    if (values > 0) {
-        Serial.println();
-        Serial.print(name);
-        Serial.println(" Microphone is good");
-        microphone_active = true;
-        return true;
-    } 
-    Serial.println("\nERROR, ");
-    Serial.print(name);Serial.println(" Microphone does not work");
-    printMinorDivideLn();
-    microphone_active = false;
+        if (values > 0) {
+            Serial.println();
+            Serial.print(name);
+            Serial.println(" Microphone is good");
+            microphone_active[i] = true;
+            return true;
+        } 
+        Serial.println("\nERROR, ");
+        Serial.print(name);Serial.println(" Microphone does not work");
+        printMinorDivideLn();
+        microphone_active[i] = false;
+}
     return false;
 }
 
@@ -252,26 +267,33 @@ bool FeatureCollector::testMicrophone () {
 
 //////////////// Update Functions ///////////////////////////////
 void FeatureCollector::calculatePeak() {
-    bool avail = peak_ana->available();
-    if (peak_active && avail) {
-        double last = peak_val;
-        peak_val =  peak_ana->read();
-        dprint(PRINT_PEAK_DEBUG, name);
-        dprint(PRINT_PEAK_DEBUG, " Peaks (normal, scaled, pos_delta):\t");
-        dprint(PRINT_PEAK_DEBUG, peak_val);
-        peak_val *= peak_scaler;
-        dprint(PRINT_PEAK_DEBUG, "\t");
-        dprint(PRINT_PEAK_DEBUG, peak_val);
-        peak_pos_delta = getPosDelta(last, peak_val);
-        dprint(PRINT_PEAK_DEBUG, "\t");
-        dprintln(PRINT_PEAK_DEBUG, peak_pos_delta);
-        peak_totals += peak_val;
-        peak_readings++;
-        if (peak_val > peak_max) {
-            peak_max = peak_val;
-        } else if (peak_val < peak_min) {
-            peak_min = peak_val;
+    double last = peak_val;
+    double _peak_val = 0.0;
+    for (int i = 0; i < num_peak_anas; i++) {
+        bool avail = peak_ana[i]->available();
+        if (peak_active && avail) {
+            double _p = peak_ana[i]->read();
+            if (_peak_val < _p){
+                _peak_val = _p;
+            }
         }
+    }
+    peak_val = _peak_val;
+    dprint(PRINT_PEAK_DEBUG, name);
+    dprint(PRINT_PEAK_DEBUG, " Peaks (normal, scaled, pos_delta):\t");
+    dprint(PRINT_PEAK_DEBUG, peak_val);
+    peak_val *= peak_scaler;
+    dprint(PRINT_PEAK_DEBUG, "\t");
+    dprint(PRINT_PEAK_DEBUG, peak_val);
+    peak_pos_delta = getPosDelta(last, peak_val);
+    dprint(PRINT_PEAK_DEBUG, "\t");
+    dprintln(PRINT_PEAK_DEBUG, peak_pos_delta);
+    peak_totals += peak_val;
+    peak_readings++;
+    if (peak_val > peak_max) {
+        peak_max = peak_val;
+    } else if (peak_val < peak_min) {
+        peak_min = peak_val;
     }
 }
 
@@ -284,16 +306,18 @@ void FeatureCollector::resetPeakAvgLog() {
 }
 
 void FeatureCollector::calculateRMS() {
-    if (rms_active  && (rms_ana->available())) {
-            double _rms = rms_ana->read() * rms_scaler;
-        if (_rms > 0.0) {
-            double temp = rms_val;
-            rms_val = _rms;
-            rms_pos_delta = getPosDelta(temp, rms_val);
-            rms_totals += rms_val;
-            rms_readings++;
-        } else {
-            dprintln(PRINT_RMS_DEBUG, "WARNING RMS is equal to 0");
+    for (int i = 0; i < num_rms_anas; i++) {
+        if (rms_active  && (rms_ana[i]->available())) {
+                double _rms = rms_ana[i]->read() * rms_scaler;
+            if (_rms > 0.0) {
+                double temp = rms_val;
+                rms_val = _rms;
+                rms_pos_delta = getPosDelta(temp, rms_val);
+                rms_totals += rms_val;
+                rms_readings++;
+            } else {
+                dprintln(PRINT_RMS_DEBUG, "WARNING RMS is equal to 0");
+            }
         }
     }
 }
@@ -368,7 +392,7 @@ void FeatureCollector::printPeakVals() {
 
 /////////////////////////////////// UPDATE / INIT //////////////////////////////////////
 void FeatureCollector::update() {
-    if (microphone_active == true) {
+    if (microphone_active[0] + microphone_active[1] > 0) {
         if (last_update_timer > FC_UPDATE_RATE) {
             last_update_timer = 0;
             calculateRMS();
