@@ -37,9 +37,9 @@ class FFTManager1024 {
         // getters
         double getFFTRangeByIdx(uint16_t s, uint16_t e);
         double getFFTRangeByFreq(uint32_t s, uint32_t e);
-        int    getHighestEnergyIdx(int start, int end);
-        int    getHighestEnergyIdx();
-        int    getHighestEnergyIdx(double array[], int start, int end);
+        uint16_t    getHighestEnergyIdx(int start, int end);
+        uint16_t    getHighestEnergyIdx();
+        uint16_t    getHighestEnergyIdx(double array[], int start, int end);
         double getRelativeEnergy(uint16_t);
         double getFFTTotalEnergy();
         double getRelativeBinPos() {return relative_bin_pos;};
@@ -327,7 +327,7 @@ void FFTManager1024::calculateFFT() {
 }
 
 
-int FFTManager1024::getHighestEnergyIdx(double array[], int start, int end) {
+uint16_t FFTManager1024::getHighestEnergyIdx(double array[], int start, int end) {
     int highest = -1;
     double h_val = 0.0;
     for (int i = start; i <= end ; i++) {
@@ -339,11 +339,11 @@ int FFTManager1024::getHighestEnergyIdx(double array[], int start, int end) {
     return highest;
 }
 
-int FFTManager1024::getHighestEnergyIdx(int start, int end){
+uint16_t FFTManager1024::getHighestEnergyIdx(int start, int end){
     return getHighestEnergyIdx(fft_vals, start, end);
 }
 
-int FFTManager1024::getHighestEnergyIdx(){
+uint16_t FFTManager1024::getHighestEnergyIdx(){
     return getHighestEnergyIdx(fft_vals, min_bin, max_bin);
 }
 
