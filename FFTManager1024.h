@@ -126,7 +126,7 @@ void printFreqRangeOfBin1024(int idx) {
 
 void FFTManager1024::printFFTVals() {
     if (fft_active && (P_FFT_VALS || P_FLUX_VALS || P_CENTROID_VALS)) {
-        Serial.print(name); Serial.print(" FFT vals\t");
+        Serial.print(name); Serial.println(" FFT vals\t");
         if (P_FFT_VALS) {
             // if (USE_SCALED_FFT) {Serial.print("Scaled ");}
             uint8_t w = 12;
@@ -145,10 +145,10 @@ void FFTManager1024::printFFTVals() {
         }
     }
     if (calculate_flux == true && P_FLUX_VALS) {
-        Serial.print("flux: ");Serial.print(flux);Serial.println();
+        Serial.print("flux:\t");Serial.print(flux);Serial.println();
     }
     if (calculate_centroid == true && P_CENTROID_VALS) {
-        Serial.print("centroid: ");Serial.println(centroid);
+        Serial.print("centroid:\t");Serial.println(centroid);
     }
 }
 
