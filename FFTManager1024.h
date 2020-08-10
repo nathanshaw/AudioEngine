@@ -35,26 +35,26 @@ class FFTManager1024 {
         void   printFFTVals();
 
         // getters
-        double getFFTRangeByIdx(uint16_t s, uint16_t e);
-        double getFFTRangeByFreq(uint32_t s, uint32_t e);
+        float getFFTRangeByIdx(uint16_t s, uint16_t e);
+        float getFFTRangeByFreq(uint32_t s, uint32_t e);
         uint16_t    getHighestEnergyIdx(int start, int end);
         uint16_t    getHighestEnergyIdx();
-        uint16_t    getHighestEnergyIdx(double array[], int start, int end);
-        double getRelativeEnergy(uint16_t);
-        double getFFTTotalEnergy();
-        double getRelativeBinPos() {return relative_bin_pos;};
+        uint16_t    getHighestEnergyIdx(float array[], int start, int end);
+        float getRelativeEnergy(uint16_t);
+        float getFFTTotalEnergy();
+        float getRelativeBinPos() {return relative_bin_pos;};
 
-        double getCentroid();
-        double getLastCentroid(){return last_centroid;};;
-        double getCentroid(uint16_t min, uint16_t max);
-        double getCentroidDelta();
-        double getCentroidPosDelta();
-        double getCentroidNegDelta();
+        float getCentroid();
+        float getLastCentroid(){return last_centroid;};;
+        float getCentroid(uint16_t min, uint16_t max);
+        float getCentroidDelta();
+        float getCentroidPosDelta();
+        float getCentroidNegDelta();
 
-        double getFlux();
+        float getFlux();
 
         // setters
-        void setupCentroid(bool v, double min, double max);
+        void setupCentroid(bool v, float min, float max);
         void setCalculateFlux(bool v) {calculate_flux= v;};
         void setFluxActive(bool s) { calculate_flux = s;}; 
 
@@ -66,39 +66,39 @@ class FFTManager1024 {
         bool fft_active = true;
         AudioAnalyzeFFT1024*fft_ana;
 
-        double raw_fft_vals[NUM_FFT_BINS];
-        double fft_max_vals[NUM_FFT_BINS];
-        double fft_vals[NUM_FFT_BINS];
-        double last_fft_vals[NUM_FFT_BINS];
+        float raw_fft_vals[NUM_FFT_BINS];
+        float fft_max_vals[NUM_FFT_BINS];
+        float fft_vals[NUM_FFT_BINS];
+        float last_fft_vals[NUM_FFT_BINS];
 
         void calculateFFT();
 
-        double fft_tot_energy = 0.0;
-        double relative_bin_pos = 0.0;
+        float fft_tot_energy = 0.0;
+        float relative_bin_pos = 0.0;
 
         uint16_t max_bin = NUM_FFT_BINS;// what is the highest index bin that we care about?
         uint16_t min_bin = 0;// what is the lowest index bin that we care about?
 
         bool calculate_centroid = false;
-        double calculateCentroid();
-        double centroid = 0.0;
-        double last_centroid = 0.0;
+        float calculateCentroid();
+        float centroid = 0.0;
+        float last_centroid = 0.0;
         int centroid_min_bin = 0;
         int centroid_max_bin = NUM_FFT_BINS;
 
         bool calculate_flux = false;
-        double calculateFlux();
-        double flux = 0.0;
+        float calculateFlux();
+        float flux = 0.0;
         elapsedMillis last_fft_reading;
         bool whitening_active = false;
-        double whitening_floor = 0.0;
+        float whitening_floor = 0.0;
 };
 
 FFTManager1024::FFTManager1024(String _id) {
     name = _id;
 }
 
-void FFTManager1024::setupCentroid(bool v, double min, double max) {
+void FFTManager1024::setupCentroid(bool v, float min, float max) {
     calculate_centroid = v;
     centroid_min_bin = uint16_t(min / 43);
     centroid_max_bin = uint16_t(max / 43);
@@ -159,10 +159,10 @@ void FFTManager1024::linkFFT(AudioAnalyzeFFT1024*r, bool w) {
     whitening_active = true;
 };
 
-double FFTManager1024::getRelativeEnergy(uint16_t idx) {
+float FFTManager1024::getRelativeEnergy(uint16_t idx) {
     // calculateFFT();
     if (fft_tot_energy > 0) {
-        double val = 0.0;
+        float val = 0.0;
         val = fft_vals[idx] / fft_tot_energy;
         // Serial.println(val);
         return val;
@@ -170,7 +170,7 @@ double FFTManager1024::getRelativeEnergy(uint16_t idx) {
     return 0.0;
 }
 
-double FFTManager1024::getFFTTotalEnergy() {
+float FFTManager1024::getFFTTotalEnergy() {
     // calculateFFT();
     if (fft_active) {
         return fft_tot_energy;
@@ -180,10 +180,10 @@ double FFTManager1024::getFFTTotalEnergy() {
 }
 
 
-double FFTManager1024::getFFTRangeByIdx(uint16_t s, uint16_t e) {
+float FFTManager1024::getFFTRangeByIdx(uint16_t s, uint16_t e) {
     // calculateFFT();
     if (fft_active) {
-        double sum = 0.0;
+        float sum = 0.0;
         for (int i = s; i <= e; i++){
             sum += fft_vals[i];
         }
@@ -192,7 +192,7 @@ double FFTManager1024::getFFTRangeByIdx(uint16_t s, uint16_t e) {
     return 0.0;
 }
 
-double FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
+float FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
     // calculateFFT();
     if (fft_active) {
         uint16_t start_idx = (uint16_t)(s / 43);
@@ -205,8 +205,8 @@ double FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
     return -1.0;
 }
 
-double FFTManager1024::calculateFlux() {
-    double f = 0.0;
+float FFTManager1024::calculateFlux() {
+    float f = 0.0;
     if (last_fft_vals[0] != 0) {
         for (int i = 2; i < NUM_FFT_BINS; i++) {
             f += pow((fft_vals[i] - last_fft_vals[i]), 2);
@@ -221,7 +221,7 @@ double FFTManager1024::calculateFlux() {
     return flux;
 }
 
-double FFTManager1024::getFlux() {
+float FFTManager1024::getFlux() {
     // calculateFFT();
     dprint(P_FLUX_VALS, "flux: ");
     dprintln(P_FLUX_VALS, flux);
@@ -229,8 +229,8 @@ double FFTManager1024::getFlux() {
 }
 
 /////////////// Calculate Features //////////////////////////////
-double FFTManager1024::calculateCentroid() {
-    double mags = 0.0;
+float FFTManager1024::calculateCentroid() {
+    float mags = 0.0;
     for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin
@@ -245,32 +245,32 @@ double FFTManager1024::calculateCentroid() {
     return centroid;
 }
 
-double FFTManager1024::getCentroidDelta() {
+float FFTManager1024::getCentroidDelta() {
     return centroid - last_centroid;
 }
 
-double FFTManager1024::getCentroidPosDelta() {
+float FFTManager1024::getCentroidPosDelta() {
     if (last_centroid < centroid) {
         return centroid - last_centroid;
     }
     return 0.0;
 }
 
-double FFTManager1024::getCentroidNegDelta() {
+float FFTManager1024::getCentroidNegDelta() {
     if (last_centroid > centroid) {
         return last_centroid - centroid;
     }
     return 0.0;
 }
 
-double FFTManager1024::getCentroid() {
+float FFTManager1024::getCentroid() {
     // calculateFFT();
     return centroid;
 }
 
-double FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
+float FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
     // calculateFFT();
-    double mags = 0.0;
+    float mags = 0.0;
     for (int i = min; i < max; i++) {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin
@@ -327,9 +327,9 @@ void FFTManager1024::calculateFFT() {
 }
 
 
-uint16_t FFTManager1024::getHighestEnergyIdx(double array[], int start, int end) {
+uint16_t FFTManager1024::getHighestEnergyIdx(float array[], int start, int end) {
     int highest = -1;
-    double h_val = 0.0;
+    float h_val = 0.0;
     for (int i = start; i <= end ; i++) {
         if (array[i] > h_val){
             highest = i;
