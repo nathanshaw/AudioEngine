@@ -3,7 +3,7 @@
 
 #include "audio_utils.h"
 #include <Audio.h>
-#include "ValueTracker/ValueTrackerDouble.h"
+#include "../ValueTracker/ValueTrackerDouble.h"
 
 #ifndef RMS_LOG_RESET_MIN
 #define RMS_LOG_RESET_MIN 2000
@@ -42,7 +42,6 @@ class FeatureCollector {
         void   setGain(double g, int channel);
         double getGain(int channel);
         void   linkAmplifier(AudioAmplifier * amp, double low, double high);
-
 
         //////////////////////////////////////////////
         //////////////// RMS /////////////////////////
@@ -154,6 +153,7 @@ class FeatureCollector {
         // unsigned long rms_readings[2];
 
         elapsedMillis last_rms_reset[2];
+        rms_log_reset_min = 2000;
 
         //////////////// Peak /////////////////////////
         AudioAnalyzePeak *peak_ana[2];
@@ -171,6 +171,8 @@ class FeatureCollector {
         ValueTrackerDouble clip_tracker[2] = {*clips[0], *clips[1]};
 
         elapsedMillis last_peak_reset[2];
+        peak_log_reset_min = 2000;
+
         //////////////// Z-crossings //////////////////////
         uint32_t z_crossings = {0, 0};
         ValueTrackerDouble z_crossings[2] = {*z_crossings[0], z_crossings[1]};

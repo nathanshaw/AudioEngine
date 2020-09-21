@@ -3,7 +3,6 @@
 
 #include "audio_utils.h"
 
-
 #define NUM_FFT_BINS 512
 
 // TODO - need to add oversamping option
@@ -27,8 +26,10 @@ class FFTManager1024 {
         float getRelativeBinPos() {return relative_bin_pos;};
 
         void setSmoothCentroid(bool s) {smooth_centroid = s;};
+
         float getCentroid();
         float getLastCentroid(){return last_centroid;};;
+
         float getCentroid(uint16_t min, uint16_t max);
         float getCentroidDelta();
         float getCentroidPosDelta();
@@ -36,12 +37,11 @@ class FFTManager1024 {
 
         float getFlux();
 
-        // setters
         void setupCentroid(bool v, float min, float max);
-        void setCalculateFlux(bool v) {calculate_flux= v;};
-        void setFluxActive(bool s) { calculate_flux = s;}; 
 
-        void calculateSpectralFlux();
+        void setCalculateFlux(bool v) {calculate_flux= v;};
+        void setFluxActive(bool s) { calculate_flux = s;};
+
         void updateFFT(){calculateFFT();};
 
         void setPrintCentroidValues(bool v) {print_centroid_values = v;};
@@ -49,14 +49,15 @@ class FFTManager1024 {
         void setPrintFFTValues(bool v) {print_fft_values = v;};
 
     private:
+        uint8_t low_flux_bin = 2;
         /////////////// printing //////////////////////
-        bool print_flux_values = false;
-        bool print_centroid_values = false;
+        bool print_flux_values =        false;
+        bool print_centroid_values =    false;
 
         /////////////////////////////////////////////////////
-        String name = "";
-        bool fft_active = true;
-        AudioAnalyzeFFT1024*fft_ana;
+        String name =                   "";
+        bool fft_active =               true;
+        AudioAnalyzeFFT1024             *fft_ana;
 
         float raw_fft_vals[NUM_FFT_BINS];
         float fft_max_vals[NUM_FFT_BINS];
@@ -68,19 +69,26 @@ class FFTManager1024 {
         float fft_tot_energy = 0.0;
         float relative_bin_pos = 0.0;
 
-        uint16_t max_bin = NUM_FFT_BINS;// what is the highest index bin that we care about?
-        uint16_t min_bin = 0;// what is the lowest index bin that we care about?
+        uint16_t max_bin = NUM_FFT_BINS;  // what is the highest index bin that we care about?
+        uint16_t min_bin = 0;             // what is the lowest index bin that we care about?
 
+        ///////////////////// Spectral Centroid ////////////
         bool calculate_centroid = false;
         float calculateCentroid();
+
         float centroid = 0.0;
-        float last_centroid = 0.0;
+        ValueTrackerFloat cent_tracker(centroid);
+
         int centroid_min_bin = 0;
         int centroid_max_bin = NUM_FFT_BINS;
 
+        /////////////////// Spectral Flux ///////////////////
         bool calculate_flux = false;
         float calculateFlux();
         float flux = 0.0;
+        ValueTrackerFloat flux_tracker(flux);
+
+        ////////////////// Adaptive Whitening //////////////
         elapsedMillis last_fft_reading;
         bool whitening_active = false;
         float whitening_floor = 0.0;
@@ -198,17 +206,14 @@ float FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
 }
 
 float FFTManager1024::calculateFlux() {
-    float f = 0.0;
-    if (last_fft_vals[0] != 0) {
-        for (int i = 2; i < NUM_FFT_BINS; i++) {
-            f += pow((fft_vals[i] - last_fft_vals[i]), 2);
-        }
-        if (f != 0.0) {
-            flux = f;
-        }
+    double f = 0.0;
+    for (int i = low_flux_bin; i < NUM_FFT_BINS; i++) {
+        f += pow((fft_vals[i] - last_fft_vals[i]), 2);
     }
-    else {
-        dprintln(print_fft_values, "last_fft_vals[0] is equal to zero");
+
+    if (f != 0.0) {
+        flux = (float) f;
+        flux_tracker.update();
     }
     return flux;
 }
@@ -227,36 +232,28 @@ float FFTManager1024::calculateCentroid() {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin
         // then all it to the total cent value
-        // we also have to remove the effect the FTT_SCALER has on the bins stored energy
         mags += raw_fft_vals[i] * getBinsMidFreq1024(i);
     }
-    last_centroid = centroid;
     centroid = mags;
+    cent_tracker.update();
     dprint(print_centroid_values, "centroid : ");
     dprintln(print_centroid_values, centroid);
     return centroid;
 }
 
 float FFTManager1024::getCentroidDelta() {
-    return centroid - last_centroid;
+    return cent_tracker.getDelta();
 }
 
 float FFTManager1024::getCentroidPosDelta() {
-    if (last_centroid < centroid) {
-        return centroid - last_centroid;
-    }
-    return 0.0;
+    return cent_tracker.getPosDelta();
 }
 
 float FFTManager1024::getCentroidNegDelta() {
-    if (last_centroid > centroid) {
-        return last_centroid - centroid;
-    }
-    return 0.0;
+    return cent_tracker.getNegDelta();
 }
 
 float FFTManager1024::getCentroid() {
-    // calculateFFT();
     return centroid;
 }
 
@@ -283,9 +280,7 @@ void FFTManager1024::calculateFFT() {
         dprintln(print_fft_values, " ms ago\n");
         fft_tot_energy = 0.0;
         if (calculate_flux == true) { // only do this if we need to in order to save time
-            for (int i = 0; i < NUM_FFT_BINS; i++) {
-                last_fft_vals[i] = fft_vals[i];
-            }
+            last_fft_vals = fft_vals;
         }
         for (int i = 0; i < NUM_FFT_BINS; i++) {
             fft_vals[i] = fft_ana->read(i);
