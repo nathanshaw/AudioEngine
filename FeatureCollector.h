@@ -3,7 +3,7 @@
 
 #include "audio_utils.h"
 #include <Audio.h>
-#include "../ValueTracker/ValueTrackerDouble.h"
+#include <ValueTracker.h>
 
 #ifndef RMS_LOG_RESET_MIN
 #define RMS_LOG_RESET_MIN 2000
