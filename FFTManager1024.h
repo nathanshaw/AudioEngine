@@ -1,8 +1,6 @@
 #ifndef __FFTManager1024_H__
 #define __FFTManager1024_H__
 
-#include "audio_utils.h"
-
 #define NUM_FFT_BINS 512
 
 // TODO - need to add oversamping option

@@ -1,7 +1,6 @@
 #ifndef __FEATURE_COLLECTOR_H__
 #define __FEATURE_COLLECTOR_H__
 
-#include "audio_utils.h"
 #include <Audio.h>
 #include <ValueTracker.h>
 

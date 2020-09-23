@@ -1,7 +1,6 @@
 #ifndef __AUDIOENGINE_H__
 #define __AUDIOENGINE_H__
 
-#include "../Configuration.h"
 #include "FeatureCollector.h"
 #include "FFTManager1024.h"
 
