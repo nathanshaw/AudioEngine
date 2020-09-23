@@ -52,7 +52,7 @@ class FeatureCollector {
         double getDominateRMS(){return rms_val[dominate_channel];}; // get the RMS reading from the dominate microphone
 
         double getRMSPosDelta(int channel){return rms_tracker[channel].getPosDelta();};
-        double getDominatePosDelta(){return getRMSPosDelta[dominate_channel]}
+        double getDominatePosDelta(){return getRMSPosDelta(dominate_channel);};
 
         double getRMSAvg(int channel){return rms_tracker[channel].getAvg();};
         double getDominateRMSAvg(){return getRMSAvg(dominate_channel);};
@@ -84,10 +84,10 @@ class FeatureCollector {
         void   resetClips(int channel){clips[channel] = 0;};
 
         ////////////////// Min / Max
-        double getPeakMin(int channel){return peak_min[channel];};
-        double getPeakMax(int channel){return peak_max[channel];};
-        double getDominatePeakMin(){return peak_min[dominate_channel];};
-        double getDominatePeakMax(){return peak_max[dominate_channel];};
+        double getPeakMin(int channel){return peak_tracker[channel].getMin();};
+        double getPeakMax(int channel){return peak_tracker[channel].getMax();};
+        double getDominatePeakMin(){return peak_tracker[dominate_channel].getMin();};
+        double getDominatePeakMax(){return peak_tracker[dominate_channel].getMax();};
 
         void   printPeakVals();
 
@@ -121,21 +121,25 @@ class FeatureCollector {
         bool print_rms          = false;
         bool print_rms_debug    = false;
         bool print_peak         = false;
-
-        // bool print_peak_debug   = false;
+        bool print_peak_debug   = false;
         bool print_z_crossings  = false;
         bool print_rms_delta    = false;
-        bool print_peak_delta    = false;
+        bool print_peak_delta   = false;
 
         /////////////// Testing Functions ////////////////
-        bool testMicrophoneRMS();
-        bool testMicrophonePeak();
+        bool testMicrophoneRMS() {return testMicrophoneRMS(5000);};
+        bool testMicrophoneRMS(int _dur);
+        bool testMicrophonePeak() {return testMicrophonePeak(5000);};
+        bool testMicrophonePeak(int _dur);
 
         //////////////// Gain Tracking ///////////////
         AudioAmplifier *amp_ana[4];
 
-        double gain[2] = {1.0, 1.0};
-        ValueTrackerDouble gain_tracker[2] {ValueTrackerDouble(*gain[0]), ValueTrackerDouble(*gain[1])};
+        float gain[2] = {1.0, 1.0};
+        ValueTrackerFloat gain_tracker[2] = {ValueTrackerFloat(&gain[0], 0.5), ValueTrackerFloat(&gain[1], 0.5)};
+        float min_gain[2];
+        float max_gain[2];
+
 
         uint8_t audio_amp_add_idx = 0;
 
@@ -147,13 +151,13 @@ class FeatureCollector {
         void calculateRMS(int channel);
 
         double rms_val[2];
-        ValueTrackerDouble rms_tracker[2] = {* rms_val[0], *rms_val[1]};
+        ValueTrackerDouble rms_tracker[2] = {ValueTrackerDouble(&rms_val[0], 0.5), ValueTrackerDouble(&rms_val[1], 0.5)};
 
         // double rms_totals[2];
         // unsigned long rms_readings[2];
 
         elapsedMillis last_rms_reset[2];
-        rms_log_reset_min = 2000;
+        uint16_t rms_log_reset_min = 2000;
 
         //////////////// Peak /////////////////////////
         AudioAnalyzePeak *peak_ana[2];
@@ -161,21 +165,22 @@ class FeatureCollector {
         bool peak_active = false;
 
         double peak_val[2];
-        ValueTrackerDouble peak_tracker[2] = {*peak_val[0], *peak_val[1]};
+        ValueTrackerDouble peak_tracker[2] = {ValueTrackerDouble(&peak_val[0], 0.5), ValueTrackerDouble(&peak_val[1], 0.5)};
 
         void calculatePeak(int channel);
 
         //////////////// Clipping /////////////////////////
-        // how many times the peak value is == 1.0
+        // how many times the peak value is >= 1.0
         uint32_t clips[2] = {0, 0};
-        ValueTrackerDouble clip_tracker[2] = {*clips[0], *clips[1]};
+        // ValueTrackerDouble clip_tracker[2] = {ValueTrackerDouble(&clips[0], 0.5), ValueTrackerDouble(&clips[1], 0.5)};
 
         elapsedMillis last_peak_reset[2];
-        peak_log_reset_min = 2000;
+        uint16_t peak_log_reset_min = 2000;
 
         //////////////// Z-crossings //////////////////////
-        uint32_t z_crossings = {0, 0};
-        ValueTrackerDouble z_crossings[2] = {*z_crossings[0], z_crossings[1]};
+        // TODO
+        // uint32_t z_crossings = {0, 0};
+        // ValueTrackerDouble z_crossing_tracker[2] = {ValueTrackerDouble(&z_crossings[0], 0.5), ValueTrackerDouble(&z_crossings[1], 0.5)};
 };
 
 void FeatureCollector::linkPeak(AudioAnalyzePeak *r, bool print) {
@@ -197,7 +202,7 @@ double FeatureCollector::getGain(int channel) {
 }
 
 bool FeatureCollector::isActive() {
- return microphondebuge_active[0] || microphone_active[1];
+ return microphone_active[0] || microphone_active[1];
 }
 
 void FeatureCollector::linkAmplifier(AudioAmplifier * amp, double low, double high) { 
@@ -329,7 +334,7 @@ void FeatureCollector::calculatePeak(int channel) {
     dprint(print_peak_debug, " Peaks (normal, pos_delta):\t");
     dprint(print_peak_debug, peak_val[channel]);
     dprint(print_peak_debug, "\t");
-    dprintln(print_peak_debug, peak_tracker.getPosDelta());
+    dprintln(print_peak_debug, peak_tracker[channel].getPosDelta());
 }
 
 void FeatureCollector::resetPeakAvg(int channel) {
@@ -354,7 +359,7 @@ void FeatureCollector::calculateRMS(int channel) {
 
 void FeatureCollector::resetRMSAvg(int channel) {
     if (last_rms_reset[channel] > RMS_LOG_RESET_MIN) {
-        rms_tracker.getAvg(true);
+        rms_tracker[channel].getAvg(true);
         last_rms_reset[channel] = 0;
     }
 }
@@ -391,8 +396,8 @@ void FeatureCollector::printRMSVals() {
         for (int channel = 0; channel < num_rms_anas; channel++){
             Serial.print(name); Serial.print(" RMS vals\t");
             Serial.print(rms_val[channel]);printTab();
-            Serial.print("delta\t");Serial.print(rms_pos_delta[channel]);
-            Serial.print(" average\t");Serial.println(getRMSAvg(channel));
+            Serial.print("delta\t");Serial.print(rms_tracker[channel].getDelta());
+            Serial.print(" average\t");Serial.println(rms_tracker[channel].getAvg());
         }
     }
 }
@@ -402,8 +407,8 @@ void FeatureCollector::printPeakVals() {
         for (int channel = 0; channel < num_peak_anas; channel++){
             Serial.print(name); Serial.print(" Peak vals\t");
             Serial.print(peak_val[channel]);printTab();
-            Serial.print("delta\t");Serial.print(peak_pos_delta[channel]);
-            Serial.print(" average\t");Serial.println(getPeakAvg(channel));
+            Serial.print("delta\t");Serial.print(peak_tracker[channel].getDelta());
+            Serial.print(" average\t");Serial.println(peak_tracker[channel].getAvg());
         }
     }
 }

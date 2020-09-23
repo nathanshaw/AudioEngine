@@ -10,7 +10,7 @@ class FFTManager1024 {
     public:
         //////////// init ///////////////
         FFTManager1024(String _name);
-        void linkFFT(AudioAnalyzeFFT1024*r, bool w, uint16_t bins);
+        void linkFFT(AudioAnalyzeFFT1024*r, bool w);
 
         // printers
         void   printFFTVals();
@@ -28,7 +28,7 @@ class FFTManager1024 {
         void setSmoothCentroid(bool s) {smooth_centroid = s;};
 
         float getCentroid();
-        float getLastCentroid(){return last_centroid;};;
+        float getLastCentroid(){return cent_tracker.getLastVal();};;
 
         float getCentroid(uint16_t min, uint16_t max);
         float getCentroidDelta();
@@ -40,9 +40,9 @@ class FFTManager1024 {
         void setupCentroid(bool v, float min, float max);
 
         void setCalculateFlux(bool v) {calculate_flux= v;};
-        void setFluxActive(bool s) { calculate_flux = s;};
+        void setCalculateCent(bool s) { calculate_centroid = s;};
 
-        void updateFFT(){calculateFFT();};
+        void update();
 
         void setPrintCentroidValues(bool v) {print_centroid_values = v;};
         void setPrintFluxValues(bool v) {print_flux_values = v;};
@@ -53,6 +53,7 @@ class FFTManager1024 {
         /////////////// printing //////////////////////
         bool print_flux_values =        false;
         bool print_centroid_values =    false;
+        bool print_fft_values =         false;
 
         /////////////////////////////////////////////////////
         String name =                   "";
@@ -74,19 +75,22 @@ class FFTManager1024 {
 
         ///////////////////// Spectral Centroid ////////////
         bool calculate_centroid = false;
+        bool smooth_centroid = false;
+
         float calculateCentroid();
 
         float centroid = 0.0;
-        ValueTrackerFloat cent_tracker(centroid);
+        ValueTrackerFloat cent_tracker = ValueTrackerFloat(&centroid, 0.5);
 
         int centroid_min_bin = 0;
         int centroid_max_bin = NUM_FFT_BINS;
+
 
         /////////////////// Spectral Flux ///////////////////
         bool calculate_flux = false;
         float calculateFlux();
         float flux = 0.0;
-        ValueTrackerFloat flux_tracker(flux);
+        ValueTrackerFloat flux_tracker = ValueTrackerFloat(&flux, 0.5);
 
         ////////////////// Adaptive Whitening //////////////
         elapsedMillis last_fft_reading;
@@ -258,7 +262,6 @@ float FFTManager1024::getCentroid() {
 }
 
 float FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
-    // calculateFFT();
     float mags = 0.0;
     for (int i = min; i < max; i++) {
         // take the magnitude of all the bins
@@ -271,7 +274,7 @@ float FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
     return mags;
 }
 
-void FFTManager1024::calculateFFT() {
+void FFTManager1024::update() {
     if (fft_active && fft_ana->available() == true) {
         dprint(print_fft_values, name);
         dprint(print_fft_values, " FFT Available, ");
@@ -280,7 +283,8 @@ void FFTManager1024::calculateFFT() {
         dprintln(print_fft_values, " ms ago\n");
         fft_tot_energy = 0.0;
         if (calculate_flux == true) { // only do this if we need to in order to save time
-            last_fft_vals = fft_vals;
+            // last_fft_vals = fft_vals;
+            memcpy(last_fft_vals, fft_vals, sizeof(float)*NUM_FFT_BINS);
         }
         for (int i = 0; i < NUM_FFT_BINS; i++) {
             fft_vals[i] = fft_ana->read(i);
@@ -290,7 +294,7 @@ void FFTManager1024::calculateFFT() {
                     fft_max_vals[i] = fft_vals[i];
                 } else {
                     // ensure that the max values decay over time to prevent issues
-                    fft_max_vals[i] = fft_max_vals[i] * 0.99;
+                    fft_max_vals[i] = fft_max_vals[i] * 0.995;
                     // then make sure that the adjusted value is not less than the floor
                     if (fft_max_vals[i] < whitening_floor) {
                         fft_max_vals[i] = whitening_floor;
@@ -304,7 +308,7 @@ void FFTManager1024::calculateFFT() {
             fft_tot_energy += fft_vals[i];
         }
         if (calculate_centroid == true) {calculateCentroid();};
-        if (calculate_centroid == true && smooth_centroid == true) {centroid = (centroid += last_centroid) * 0.5;};
+        if (calculate_centroid == true && smooth_centroid == true) {centroid = (centroid += cent_tracker.getLastVal()) * 0.5;};
         if (calculate_flux == true) {calculateFlux();};
         if (print_fft_values) {
           printFFTVals();

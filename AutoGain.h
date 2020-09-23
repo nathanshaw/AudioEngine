@@ -94,7 +94,7 @@ class AutoGain {
 ////////////////////////////////////////////////////////////////////////
 
 AutoGain::AutoGain(FeatureCollector *_fc, double min, double max, double max_gain_a) {
-    if (_fc->ampActive() == false) {
+    if (_fc->isActive() == false) {
         Serial.println("WARNING - \
                 the passed feature collector does not have amplifiers active");
     }
