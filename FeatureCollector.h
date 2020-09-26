@@ -91,7 +91,7 @@ class FeatureCollector {
         void   printPeakVals();
 
         //////////////// General ///////////////////////
-        void update();
+        bool update();
         void setDominateChannel(int c){dominate_channel = c;};
 
         int getNumRMSAnas() {return num_rms_anas;};
@@ -318,12 +318,10 @@ bool FeatureCollector::testMicrophone () {
 //////////////// Update Functions ///////////////////////////////
 /////////////////////////////////////////////////////////////////
 void FeatureCollector::calculatePeak(int channel) {
-    double _peak_val = 0.0;
     for (int i = 0; i < num_peak_anas; i++) {
         bool avail = peak_ana[i]->available();
         if (peak_active && avail) {
-            double _p = peak_ana[i]->read();
-            peak_val[channel] = _peak_val;
+            peak_val[channel] = peak_ana[i]->read();;
         }
     }
     if (peak_val[channel] >= 1.0) {
@@ -413,10 +411,9 @@ void FeatureCollector::printPeakVals() {
 }
 
 /////////////////////////////////// UPDATE / INIT //////////////////////////////////////
-void FeatureCollector::update() {
+bool FeatureCollector::update() {
     if (microphone_active[0] + microphone_active[1] > 0) {
-        if (last_update_timer > FC_UPDATE_RATE) {
-            last_update_timer = 0;
+        if (last_update_timer > fc_update_rate) {
             for (int i = 0; i < num_rms_anas; i++) {
                 calculateRMS(i);
             }
@@ -424,6 +421,8 @@ void FeatureCollector::update() {
                 calculatePeak(i);
             }
             printFeatures();
+            last_update_timer = 0;
+            return true;
         }
     }
     else {
@@ -433,5 +432,6 @@ void FeatureCollector::update() {
             last_update_timer = 0;
         }
     }
+    return false;
 }
 #endif

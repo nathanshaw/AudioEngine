@@ -3,6 +3,7 @@
 
 #include "FeatureCollector.h"
 #include "FFTManager1024.h"
+#include <ValueTracker.h>
 
 #ifndef P_AUTO_GAIN
 #define P_AUTO_GAIN 0
@@ -87,6 +88,20 @@ class AutoGain {
     FeatureCollector        *fc;
     FFTManager1024          *fft;
 };
+
+float minf(float l, float b) {
+    if (l < b){
+        return l;
+    }
+    return b;
+}
+
+float maxf(float l, float b) {
+    if (l > b){
+        return l;
+    }
+    return b;
+}
 
 ////////////////////////////////////////////////////////////////////////
 ///////////////////////////// Initialisation ///////////////////////////

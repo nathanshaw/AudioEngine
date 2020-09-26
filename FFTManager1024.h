@@ -2,13 +2,15 @@
 #define __FFTManager1024_H__
 
 #define NUM_FFT_BINS 512
+#include <ValueTracker.h>
+#include <Audio.h>
 
 // TODO - need to add oversamping option
 class FFTManager1024 {
     public:
         //////////// init ///////////////
         FFTManager1024(String _name);
-        void linkFFT(AudioAnalyzeFFT1024*r, bool w);
+        void linkFFT(AudioAnalyzeFFT1024 *r);
 
         // printers
         void   printFFTVals();
@@ -26,7 +28,8 @@ class FFTManager1024 {
         void setSmoothCentroid(bool s) {smooth_centroid = s;};
 
         float getCentroid();
-        float getLastCentroid(){return cent_tracker.getLastVal();};;
+        float getLastCentroid(){return cent_tracker.getLastVal();};
+        float getScaledCentroid(){return cent_tracker.getScaled();};
 
         float getCentroid(uint16_t min, uint16_t max);
         float getCentroidDelta();
@@ -40,14 +43,13 @@ class FFTManager1024 {
         void setCalculateFlux(bool v) {calculate_flux= v;};
         void setCalculateCent(bool s) { calculate_centroid = s;};
 
-        void update();
+        bool update();
 
         void setPrintCentroidValues(bool v) {print_centroid_values = v;};
         void setPrintFluxValues(bool v) {print_flux_values = v;};
         void setPrintFFTValues(bool v) {print_fft_values = v;};
 
     private:
-        uint8_t low_flux_bin = 2;
         /////////////// printing //////////////////////
         bool print_flux_values =        false;
         bool print_centroid_values =    false;
@@ -68,8 +70,8 @@ class FFTManager1024 {
         float fft_tot_energy = 0.0;
         float relative_bin_pos = 0.0;
 
-        uint16_t max_bin = NUM_FFT_BINS;  // what is the highest index bin that we care about?
-        uint16_t min_bin = 0;             // what is the lowest index bin that we care about?
+        uint16_t max_bin = 465;  // what is the highest index bin that we care about?
+        uint16_t min_bin = 3;             // what is the lowest index bin that we care about?
 
         ///////////////////// Spectral Centroid ////////////
         bool calculate_centroid = false;
@@ -80,9 +82,9 @@ class FFTManager1024 {
         float centroid = 0.0;
         ValueTrackerFloat cent_tracker = ValueTrackerFloat(&centroid, 0.5);
 
-        int centroid_min_bin = 0;
-        int centroid_max_bin = NUM_FFT_BINS;
-
+        // by skipping the first few and last several bins a better figure can be captured
+        int centroid_min_bin = 3;  // corresponds to 120 Hz about
+        int centroid_max_bin = 465;// corresponds to 20k Hz about
 
         /////////////////// Spectral Flux ///////////////////
         bool calculate_flux = false;
@@ -154,7 +156,8 @@ void FFTManager1024::printFFTVals() {
     }
 }
 
-void FFTManager1024::linkFFT(AudioAnalyzeFFT1024*r, bool w) {
+void FFTManager1024::linkFFT(AudioAnalyzeFFT1024* r) {
+    
     fft_ana = r;
     fft_ana->averageTogether(4); // average together the readings from 10 FFT's before available() returns true, normally produces over 300 fft per second, this will be closer to 30
     fft_active = true;
@@ -199,9 +202,9 @@ float FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
     if (fft_active) {
         uint16_t start_idx = (uint16_t)(s / 43);
         uint16_t end_idx = (uint16_t)(e / 43);
-        Serial.print(start_idx);
-        Serial.print(" - - ");
-        Serial.println(end_idx);
+        // Serial.print(start_idx);
+        // Serial.print(" - - ");
+        // Serial.println(end_idx);
         return fft_ana->read(start_idx, end_idx);
     }
     return -1.0;
@@ -209,10 +212,9 @@ float FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
 
 float FFTManager1024::calculateFlux() {
     double f = 0.0;
-    for (int i = low_flux_bin; i < NUM_FFT_BINS; i++) {
+    for (int i = min_bin; i < max_bin; i++) {
         f += pow((fft_vals[i] - last_fft_vals[i]), 2);
     }
-
     if (f != 0.0) {
         flux = (float) f;
         flux_tracker.update();
@@ -229,14 +231,14 @@ float FFTManager1024::getFlux() {
 
 /////////////// Calculate Features //////////////////////////////
 float FFTManager1024::calculateCentroid() {
-    float mags = 0.0;
+    double mags = 0.0;
     for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin
         // then all it to the total cent value
         mags += raw_fft_vals[i] * getBinsMidFreq1024(i);
     }
-    centroid = mags;
+    centroid = (float) mags;
     cent_tracker.update();
     dprint(print_centroid_values, "centroid : ");
     dprintln(print_centroid_values, centroid);
@@ -272,47 +274,50 @@ float FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
     return mags;
 }
 
-void FFTManager1024::update() {
-    if (fft_active && fft_ana->available() == true) {
-        dprint(print_fft_values, name);
-        dprint(print_fft_values, " FFT Available, ");
-        dprint(print_fft_values, " last FFT reading was ");
-        dprint(print_fft_values, (uint32_t)last_fft_reading);
-        dprintln(print_fft_values, " ms ago\n");
-        fft_tot_energy = 0.0;
-        if (calculate_flux == true) { // only do this if we need to in order to save time
-            // last_fft_vals = fft_vals;
-            memcpy(last_fft_vals, fft_vals, sizeof(float)*NUM_FFT_BINS);
-        }
-        for (int i = 0; i < NUM_FFT_BINS; i++) {
-            fft_vals[i] = fft_ana->read(i);
-            raw_fft_vals[i] = fft_vals[i];
-            if (whitening_active) {
-                if (fft_vals[i] > fft_max_vals[i]) {
-                    fft_max_vals[i] = fft_vals[i];
-                } else {
-                    // ensure that the max values decay over time to prevent issues
-                    fft_max_vals[i] = fft_max_vals[i] * 0.995;
-                    // then make sure that the adjusted value is not less than the floor
-                    if (fft_max_vals[i] < whitening_floor) {
-                        fft_max_vals[i] = whitening_floor;
-                    }
-                }
-                fft_vals[i] = fft_vals[i] / fft_max_vals[i];
-            }
-        }
-        for (int i = 0; i < NUM_FFT_BINS; i++) {
-            // fft_vals[i] *= fft_scaler;
-            fft_tot_energy += fft_vals[i];
-        }
-        if (calculate_centroid == true) {calculateCentroid();};
-        if (calculate_centroid == true && smooth_centroid == true) {centroid = (centroid += cent_tracker.getLastVal()) * 0.5;};
-        if (calculate_flux == true) {calculateFlux();};
-        if (print_fft_values) {
-          printFFTVals();
-        }
-        last_fft_reading = 0;
+bool FFTManager1024::update() {
+    if (fft_active && fft_ana->available() == false) {
+        return false;
     }
+    dprint(print_fft_values, name);
+    dprint(print_fft_values, " FFT Available, ");
+    dprint(print_fft_values, " last FFT reading was ");
+    dprint(print_fft_values, (uint32_t)last_fft_reading);
+    dprintln(print_fft_values, " ms ago\n");
+    fft_tot_energy = 0.0;
+    if (calculate_flux == true) { // only do this if we need to in order to save time
+        // last_fft_vals = fft_vals;
+        memcpy(last_fft_vals, fft_vals, sizeof(float)*NUM_FFT_BINS);
+    }
+    for (int i = 0; i < NUM_FFT_BINS; i++) {
+        fft_vals[i] = fft_ana->read(i);
+        raw_fft_vals[i] = fft_vals[i];
+        if (whitening_active) {
+            if (fft_vals[i] > fft_max_vals[i]) {
+                fft_max_vals[i] = fft_vals[i];
+            } else {
+                // ensure that the max values decay over time to prevent issues
+                fft_max_vals[i] = fft_max_vals[i] * 0.995;
+                // then make sure that the adjusted value is not less than the floor
+                if (fft_max_vals[i] < whitening_floor) {
+                    fft_max_vals[i] = whitening_floor;
+                }
+            }
+            fft_vals[i] = fft_vals[i] / fft_max_vals[i];
+        }
+    }
+    for (int i = min_bin; i < max_bin; i++) {
+        fft_tot_energy += fft_vals[i];
+    }
+    if (calculate_centroid == true) {calculateCentroid();};
+    if (calculate_centroid == true && smooth_centroid == true) {
+        centroid = cent_tracker.getRAvg();
+    };
+    if (calculate_flux == true) {calculateFlux();};
+    if (print_fft_values) {
+        printFFTVals();
+    }
+    last_fft_reading = 0;
+    return true;
 }
 
 
