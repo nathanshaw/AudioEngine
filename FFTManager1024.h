@@ -9,7 +9,7 @@
 class FFTManager1024 {
     public:
         //////////// init ///////////////
-        FFTManager1024(String _name);
+        FFTManager1024(uint16_t min, uint16_t max, String _name);
         void linkFFT(AudioAnalyzeFFT1024 *r);
 
         // printers
@@ -98,8 +98,10 @@ class FFTManager1024 {
         float whitening_floor = 0.0;
 };
 
-FFTManager1024::FFTManager1024(String _id) {
+FFTManager1024::FFTManager1024(uint16_t min, uint16_t max, String _id) {
     name = _id;
+    min_bin = min;
+    max_bin = max;
 }
 
 void FFTManager1024::setupCentroid(bool v, float min, float max) {
@@ -232,13 +234,18 @@ float FFTManager1024::getFlux() {
 /////////////// Calculate Features //////////////////////////////
 float FFTManager1024::calculateCentroid() {
     double mags = 0.0;
+    double c = 0.0;
+    // first scale the bins
     for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin
         // then all it to the total cent value
-        mags += raw_fft_vals[i] * getBinsMidFreq1024(i);
+        mags += raw_fft_vals[i];
     }
-    centroid = (float) mags;
+    for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
+        c += (raw_fft_vals[i] / mags) * getBinsMidFreq1024(i);
+    }
+    centroid = (float) c;
     cent_tracker.update();
     dprint(print_centroid_values, "centroid : ");
     dprintln(print_centroid_values, centroid);
