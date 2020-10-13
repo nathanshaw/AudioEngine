@@ -2,7 +2,7 @@
 #define __FFTManager1024_H__
 
 #define NUM_FFT_BINS 512
-#include <ValueTracker.h>
+#include <ValueTrackerDouble.h>
 #include <Audio.h>
 
 // TODO - need to add oversamping option
@@ -27,16 +27,17 @@ class FFTManager1024 {
 
         void setSmoothCentroid(bool s) {smooth_centroid = s;};
 
-        float getCentroid();
-        float getLastCentroid(){return cent_tracker.getLastVal();};
-        float getScaledCentroid(){return cent_tracker.getScaled();};
+        double getCentroid();
+        double getCentroid(uint16_t min, uint16_t max);
+        double getLastCentroid(){return cent_tracker.getLastVal();};
 
-        float getCentroid(uint16_t min, uint16_t max);
-        float getCentroidDelta();
-        float getCentroidPosDelta();
-        float getCentroidNegDelta();
+        double getScaledCentroid(){return cent_tracker.getScaled();};
 
-        float getFlux();
+        double getCentroidDelta();
+        double getCentroidPosDelta();
+        double getCentroidNegDelta();
+
+        double getFlux();
 
         void setupCentroid(bool v, float min, float max);
 
@@ -77,10 +78,10 @@ class FFTManager1024 {
         bool calculate_centroid = false;
         bool smooth_centroid = false;
 
-        float calculateCentroid();
+        double calculateCentroid();
 
-        float centroid = 0.0;
-        ValueTrackerFloat cent_tracker = ValueTrackerFloat(&centroid, 0.5);
+        double centroid = 0.0;
+        ValueTrackerDouble cent_tracker = ValueTrackerDouble("centroid", &centroid, 0.5);
 
         // by skipping the first few and last several bins a better figure can be captured
         int centroid_min_bin = 3;  // corresponds to 120 Hz about
@@ -88,9 +89,9 @@ class FFTManager1024 {
 
         /////////////////// Spectral Flux ///////////////////
         bool calculate_flux = false;
-        float calculateFlux();
-        float flux = 0.0;
-        ValueTrackerFloat flux_tracker = ValueTrackerFloat(&flux, 0.5);
+        double calculateFlux();
+        double flux = 0.0;
+        ValueTrackerDouble flux_tracker = ValueTrackerDouble("flux", &flux, 0.5);
 
         ////////////////// Adaptive Whitening //////////////
         elapsedMillis last_fft_reading;
@@ -212,19 +213,19 @@ float FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
     return -1.0;
 }
 
-float FFTManager1024::calculateFlux() {
+double FFTManager1024::calculateFlux() {
     double f = 0.0;
     for (int i = min_bin; i < max_bin; i++) {
         f += pow((fft_vals[i] - last_fft_vals[i]), 2);
     }
     if (f != 0.0) {
-        flux = (float) f;
+        flux = f;
         flux_tracker.update();
     }
     return flux;
 }
 
-float FFTManager1024::getFlux() {
+double FFTManager1024::getFlux() {
     // calculateFFT();
     dprint(print_flux_values, "flux: ");
     dprintln(print_flux_values, flux);
@@ -232,7 +233,7 @@ float FFTManager1024::getFlux() {
 }
 
 /////////////// Calculate Features //////////////////////////////
-float FFTManager1024::calculateCentroid() {
+double FFTManager1024::calculateCentroid() {
     double mags = 0.0;
     double c = 0.0;
     // first scale the bins
@@ -245,31 +246,31 @@ float FFTManager1024::calculateCentroid() {
     for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         c += (raw_fft_vals[i] / mags) * getBinsMidFreq1024(i);
     }
-    centroid = (float) c;
+    centroid = c;
     cent_tracker.update();
     dprint(print_centroid_values, "centroid : ");
     dprintln(print_centroid_values, centroid);
     return centroid;
 }
 
-float FFTManager1024::getCentroidDelta() {
+double FFTManager1024::getCentroidDelta() {
     return cent_tracker.getDelta();
 }
 
-float FFTManager1024::getCentroidPosDelta() {
+double FFTManager1024::getCentroidPosDelta() {
     return cent_tracker.getPosDelta();
 }
 
-float FFTManager1024::getCentroidNegDelta() {
+double FFTManager1024::getCentroidNegDelta() {
     return cent_tracker.getNegDelta();
 }
 
-float FFTManager1024::getCentroid() {
+double FFTManager1024::getCentroid() {
     return centroid;
 }
 
-float FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
-    float mags = 0.0;
+double FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
+    double mags = 0.0;
     for (int i = min; i < max; i++) {
         // take the magnitude of all the bins
         // and multiply if by the mid frequency of the bin

@@ -20,7 +20,7 @@ class AutoGain {
 
     // for linked additional external feature collectors and FFTManagers
     void linkFeatureCollector(FeatureCollector *_fc );
-    // void linkFFT(FFTManager1024 *);
+    void linkFFTManager(FFTManager1024 * f);
 
     ///////////////////////////////////////////////////////////////////////////
     // for changing how often the auto-gain updates once the gain value is 
@@ -32,6 +32,7 @@ class AutoGain {
     //
     void trackAvgRMS(double target, double tolerance, double min, double max);
     void trackOnRatio(double target, double tolerance, double min, double max);
+    // TODO - add track clips
 
     ////////////////////////////////////////////////////////////////////////////
     // the general update function that will look to see if the AutoGain is
@@ -42,6 +43,7 @@ class AutoGain {
     bool update();
 
     int calculateDominateChannel();
+    void forceCalibartion();
 
   private:
     /////////////////// Linkages and Tracking /////////////////////
@@ -50,6 +52,9 @@ class AutoGain {
     bool calculate(int channel);
     bool gain_good =                    false;
     uint8_t num_feature_collectors =    0;
+    uint8_t num_fft_managers       =    0;
+
+    bool fc_linked  =                   false;
     bool fft_linked =                   false;
 
     int rms_idx;
@@ -112,9 +117,9 @@ AutoGain::AutoGain(FeatureCollector *_fc, double min, double max, double max_gai
         Serial.println("WARNING - \
                 the passed feature collector does not have amplifiers active");
     }
-    min_gain[num_feature_collectors] = min;
-    max_gain[num_feature_collectors] = max;
-    max_gain_adj[num_feature_collectors] = max_gain_a;
+    min_gain     = min;
+    max_gain     = max;
+    max_gain_adj = max_gain_a;
     // this will add the feature collector to and
     // increase the num_feature_collectors by one
     linkFeatureCollector(_fc);
@@ -127,7 +132,16 @@ AutoGain::AutoGain(FeatureCollector *_fc, FFTManager1024 *_fft, double min, doub
 
 void AutoGain::linkFeatureCollector(FeatureCollector *_fc ) {
     fc = _fc;
-    num_feature_collectors++;
+    fc_linked = true;
+}
+
+void AutoGain::linkFFTManager(FFTManager1024 * f) {
+    fft = f;
+    fft_linked = true;
+}
+
+void AutoGain::forceCalibartion() {
+    // TODO
 }
 
 ////////////////////////////////////////////////////////////////////////

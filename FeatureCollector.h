@@ -2,7 +2,7 @@
 #define __FEATURE_COLLECTOR_H__
 
 #include <Audio.h>
-#include <ValueTracker.h>
+#include <ValueTrackerDouble.h>
 
 #ifndef RMS_LOG_RESET_MIN
 #define RMS_LOG_RESET_MIN 2000
@@ -134,8 +134,9 @@ class FeatureCollector {
         //////////////// Gain Tracking ///////////////
         AudioAmplifier *amp_ana[4];
 
-        float gain[2] = {1.0, 1.0};
-        ValueTrackerFloat gain_tracker[2] = {ValueTrackerFloat(&gain[0], 0.5), ValueTrackerFloat(&gain[1], 0.5)};
+        double gain[2] = {1.0, 1.0};
+        ValueTrackerDouble gain_tracker[2] = {ValueTrackerDouble("front_gain",&gain[0], 0.5), 
+                ValueTrackerDouble("rear_gain", &gain[1], 0.5)};
         float min_gain[2];
         float max_gain[2];
 
@@ -150,7 +151,7 @@ class FeatureCollector {
         void calculateRMS(int channel);
 
         double rms_val[2];
-        ValueTrackerDouble rms_tracker[2] = {ValueTrackerDouble(&rms_val[0], 0.5), ValueTrackerDouble(&rms_val[1], 0.5)};
+        ValueTrackerDouble rms_tracker[2] = {ValueTrackerDouble("front_rms", &rms_val[0], 0.5), ValueTrackerDouble("rear_rms", &rms_val[1], 0.5)};
 
         // double rms_totals[2];
         // unsigned long rms_readings[2];
@@ -164,7 +165,7 @@ class FeatureCollector {
         bool peak_active = false;
 
         double peak_val[2];
-        ValueTrackerDouble peak_tracker[2] = {ValueTrackerDouble(&peak_val[0], 0.5), ValueTrackerDouble(&peak_val[1], 0.5)};
+        ValueTrackerDouble peak_tracker[2] = {ValueTrackerDouble("front_peak", &peak_val[0], 0.5), ValueTrackerDouble("rear_peak", &peak_val[1], 0.5)};
 
         void calculatePeak(int channel);
 
