@@ -74,9 +74,9 @@ class AutoGain {
     double max_thresh[2];
 
     // for the gain adjustments
-    double min_gain[2];
-    double max_gain[2];
-    double max_gain_adj[2];
+    double min_gain;
+    double max_gain;
+    double max_gain_adj;
 
     //////////////////// Cost /////////////////////////////////////
     double calculateCost(double val, int idx);
@@ -181,7 +181,7 @@ bool AutoGain::calculate(int channel) {
         // dprint(P_AUTO_GAIN, "on_ratio adjusted the cost to: ");
         // dprintln(P_AUTO_GAIN, cost);
     }
-    new_gain = minf(max_gain[channel], new_gain);
+    new_gain = maxf(minf(max_gain, new_gain), min_gain);
     // only update the gain if it is different from the current gain
     if (new_gain != fc->getGain(channel)) {
         // this cost value tells us if gain adjustment is needed, if the value

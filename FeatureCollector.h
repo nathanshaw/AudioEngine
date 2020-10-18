@@ -25,6 +25,7 @@ class FeatureCollector {
 
         /////////////////// Microphone Testing /////////////////
         bool testMicrophone();
+        uint8_t calculateDominateChannel(); 
 
         /////////////////// Printing ///////////////////////////
         void printFeatures();
@@ -183,6 +184,10 @@ class FeatureCollector {
         // ValueTrackerDouble z_crossing_tracker[2] = {ValueTrackerDouble(&z_crossings[0], 0.5), ValueTrackerDouble(&z_crossings[1], 0.5)};
 };
 
+FeatureCollector::FeatureCollector(String _id) {
+    name = _id;
+}
+
 void FeatureCollector::linkPeak(AudioAnalyzePeak *r, bool print) {
     print_peak = print;
     peak_ana[num_peak_anas] = r;
@@ -197,9 +202,6 @@ void FeatureCollector::linkRMS(AudioAnalyzeRMS *r, bool print) {
     rms_active = true;
 };
 
-double FeatureCollector::getGain(int channel) {
-    return gain[channel];
-}
 
 bool FeatureCollector::isActive() {
  return microphone_active[0] || microphone_active[1];
@@ -219,9 +221,6 @@ void FeatureCollector::linkAmplifier(AudioAmplifier * amp, double low, double hi
     }
 }
 
-FeatureCollector::FeatureCollector(String _id) {
-    name = _id;
-}
 
 
 void FeatureCollector::setGain(double g, int channel) {
@@ -239,6 +238,14 @@ void FeatureCollector::setGain(double g, int channel) {
         gain[channel] = min_gain[channel];
     }
     amp_ana[channel]->gain(g);
+}
+
+double FeatureCollector::getGain(int channel) {
+    return gain[channel];
+}
+
+uint8_t FeatureCollector::calculateDominateChannel() {
+    Serial.println("TODO");
 }
 
 bool FeatureCollector::testMicrophoneRMS(int _dur) {

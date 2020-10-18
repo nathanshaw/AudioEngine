@@ -1,3 +1,11 @@
+    AudioAnalyzeClipCounter KEYWORD1
+
+    getNumClips             KEYWORD2
+    resetCounter            KEYWORD2
+    setThreshold            KEYWORD2
+
+    AudioAnalyzeZeroCrossing KEYWORD1
+    getNumCrossings         KEYWORD1
 
     FeatureCollector        KEYWORD1
     testMicrophone          KEYWORD2
@@ -7,6 +15,7 @@
     getRMS                  KEYWORD2
     getRMSPosDelta          KEYWORD2
     printRMSVals            KEYWORD2
+
 
     linkPeak                KEYWORD2
     getPeakVa               KEYWORD2

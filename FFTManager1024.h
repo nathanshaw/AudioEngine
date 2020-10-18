@@ -37,6 +37,8 @@ class FFTManager1024 {
         double getCentroidPosDelta();
         double getCentroidNegDelta();
 
+        double getROff(){return roff;};
+
         double getFlux();
 
         void setupCentroid(bool v, float min, float max);
@@ -92,6 +94,14 @@ class FFTManager1024 {
         double calculateFlux();
         double flux = 0.0;
         ValueTrackerDouble flux_tracker = ValueTrackerDouble("flux", &flux, 0.5);
+
+        /////////////////// Spectral RollOff ///////////////////
+        bool calculate_roff= false;
+        double calculateROff();
+        double roff = 0.0;
+        double roff_factor = 0.0;
+        ValueTrackerDouble roff_tracker = ValueTrackerDouble("roff", &roff, 0.5);
+        double calculateROff(double factor);
 
         ////////////////// Adaptive Whitening //////////////
         elapsedMillis last_fft_reading;
@@ -230,6 +240,19 @@ double FFTManager1024::getFlux() {
     dprint(print_flux_values, "flux: ");
     dprintln(print_flux_values, flux);
     return flux;
+}
+
+double FFTManager1024::calculateROff() {
+    return calculateROff(roff_factor);
+}
+
+double FFTManager1024::calculateROff(double factor) {
+    double r = 0.0;
+    // TODO
+    roff = r;
+    roff_tracker.update();
+    return r;
+
 }
 
 /////////////// Calculate Features //////////////////////////////
