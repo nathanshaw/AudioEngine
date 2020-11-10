@@ -2,6 +2,7 @@
 #define __FFTManager1024_H__
 
 #define NUM_FFT_BINS 512
+
 #include <ValueTrackerDouble.h>
 #include <Audio.h>
 
@@ -10,7 +11,7 @@ class FFTManager1024 {
     public:
         //////////// init ///////////////
         FFTManager1024(uint16_t min, uint16_t max, String _name);
-        void linkFFT(AudioAnalyzeFFT1024 *r);
+        void linkFFT(AudioAnalyzeFFT1024 *r, String n);
 
         // printers
         void   printFFTVals();
@@ -37,6 +38,9 @@ class FFTManager1024 {
         double getCentroidPosDelta();
         double getCentroidNegDelta();
 
+        double getAvgCentroid();
+        void resetAvgCentroid();
+
         double getROff(){return roff;};
 
         double getFlux();
@@ -52,13 +56,31 @@ class FFTManager1024 {
         void setPrintFluxValues(bool v) {print_flux_values = v;};
         void setPrintFFTValues(bool v) {print_fft_values = v;};
 
+        ////////////////////////////// Dynamic Control ////////////////////////
+        // these experimental functions change the audio connections during runtime
+        // for diagnostic purposes as well as to allow for changing the dominate microphone
+        // this allows for a single fft analysis object to provide analysis for multiple
+        // channels  of audio during runtime
+        //
+        // this function adds a possible input to the FFTManager
+        void addInput(AudioConnection *connection);
+        // this function changes which one of the inputs is active
+        void changeInput(uint8_t c);
+        // returns the current input
+        uint8_t getInput(){return active_input;};
+
     private:
-        /////////////// printing //////////////////////
+        ///////////////// Input Switching ////////////////////////////
+        uint8_t active_input = 0;
+        uint8_t num_inputs = 0;
+        AudioConnection *input_connections[4];
+
+        /////////////// printing /////////////////////////////////////
         bool print_flux_values =        false;
         bool print_centroid_values =    false;
         bool print_fft_values =         false;
 
-        /////////////////////////////////////////////////////
+        ///////////////////// General ////////////////////////////////
         String name =                   "";
         bool fft_active =               true;
         AudioAnalyzeFFT1024             *fft_ana;
@@ -96,7 +118,7 @@ class FFTManager1024 {
         ValueTrackerDouble flux_tracker = ValueTrackerDouble("flux", &flux, 0.5);
 
         /////////////////// Spectral RollOff ///////////////////
-        bool calculate_roff= false;
+        bool calculate_roff = false;
         double calculateROff();
         double roff = 0.0;
         double roff_factor = 0.0;
@@ -119,10 +141,28 @@ void FFTManager1024::setupCentroid(bool v, float min, float max) {
     calculate_centroid = v;
     centroid_min_bin = uint16_t(min / 43);
     centroid_max_bin = uint16_t(max / 43);
-    Serial.print("Now calculating the centroid for energy in bins ");
+    Serial.print(F("Now calculating the centroid for energy in bins "));
     Serial.print(centroid_min_bin);
-    Serial.print(" through ");
+    Serial.print(F(" through "));
     Serial.println(centroid_max_bin);
+}
+/////////////////////////////////////////////////////////////////////
+////////////////// Input Switching //////////////////////////////////
+/////////////////////////////////////////////////////////////////////
+void FFTManager1024::addInput(AudioConnection *connection) {
+    input_connections[num_inputs] = connection;
+    num_inputs++;
+}
+
+void FFTManager1024::changeInput(uint8_t c) {
+    active_input = c;
+    for (int i = 0;  i < num_inputs; i++) {
+        if (i != active_input) {
+            input_connections[i]->disconnect();
+        } else {
+            input_connections[i]->connect();
+        }
+    }
 }
 
 uint32_t getBinsMidFreq1024(int bin) {
@@ -131,19 +171,19 @@ uint32_t getBinsMidFreq1024(int bin) {
 
 void printFreqRangeOfBin256(int idx) {
     Serial.print(idx * 172);
-    Serial.print(" - ");
+    Serial.print(F(" - "));
     Serial.println((idx + 1) * 172);
 }
 
 void printFreqRangeOfBin1024(int idx) {
     Serial.print(idx * 43);
-    Serial.print(" - ");
+    Serial.print(F(" - "));
     Serial.println((idx + 1) * 43);
 }
 
 void FFTManager1024::printFFTVals() {
     if (fft_active && (print_fft_values || print_flux_values || print_centroid_values)) {
-        Serial.print(name); Serial.println(" FFT vals\t");
+        Serial.print(name); Serial.println(F(" FFT vals\t"));
         if (print_fft_values) {
             // if (USE_SCALED_FFT) {Serial.print("Scaled ");}
             uint8_t w = 12;
@@ -162,17 +202,17 @@ void FFTManager1024::printFFTVals() {
         }
     }
     if (calculate_flux == true && print_flux_values) {
-        Serial.print("flux:\t");Serial.print(flux);Serial.println();
+        Serial.print(F("flux:\t"));Serial.print(flux);Serial.println();
     }
     if (calculate_centroid == true && print_centroid_values) {
-        Serial.print("centroid:\t");Serial.println(centroid);
+        Serial.print(F("centroid:\t"));Serial.println(centroid);
     }
 }
 
-void FFTManager1024::linkFFT(AudioAnalyzeFFT1024* r) {
-    
+void FFTManager1024::linkFFT(AudioAnalyzeFFT1024* r, String n) {
+    name = n;
     fft_ana = r;
-    fft_ana->averageTogether(4); // average together the readings from 10 FFT's before available() returns true, normally produces over 300 fft per second, this will be closer to 30
+    fft_ana->averageTogether(20); // average together the readings from 10 FFT's before available() returns true, normally produces over 300 fft per second, this will be closer to 30
     fft_active = true;
     whitening_active = true;
 };
@@ -193,7 +233,7 @@ float FFTManager1024::getFFTTotalEnergy() {
     if (fft_active) {
         return fft_tot_energy;
     }
-    Serial.println("ERROR  - FFT IS NOT AN ACTIVE AUDIO FEATURE : "); Serial.println(name);
+    Serial.println(F("ERROR  - FFT IS NOT AN ACTIVE AUDIO FEATURE : ")); Serial.println(name);
     return 0.0;
 }
 
@@ -237,7 +277,7 @@ double FFTManager1024::calculateFlux() {
 
 double FFTManager1024::getFlux() {
     // calculateFFT();
-    dprint(print_flux_values, "flux: ");
+    dprint(print_flux_values, F("flux: "));
     dprintln(print_flux_values, flux);
     return flux;
 }
@@ -252,7 +292,15 @@ double FFTManager1024::calculateROff(double factor) {
     roff = r;
     roff_tracker.update();
     return r;
+}
 
+double FFTManager1024::getAvgCentroid(){
+    return cent_tracker.getRAvg();
+}
+
+void FFTManager1024::resetAvgCentroid(){
+    // a true will reset the average
+    return cent_tracker.getRAvg(true);
 }
 
 /////////////// Calculate Features //////////////////////////////
@@ -271,7 +319,7 @@ double FFTManager1024::calculateCentroid() {
     }
     centroid = c;
     cent_tracker.update();
-    dprint(print_centroid_values, "centroid : ");
+    dprint(print_centroid_values, F("centroid : "));
     dprintln(print_centroid_values, centroid);
     return centroid;
 }
@@ -300,25 +348,28 @@ double FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
         // then all it to the total cent value
         mags += fft_vals[i] * getBinsMidFreq1024(i);
     }
-    dprint(print_centroid_values, "centroid : ");
+    dprint(print_centroid_values, F("centroid : "));
     dprintln(print_centroid_values, mags);
     return mags;
 }
 
 bool FFTManager1024::update() {
-    if (fft_active && fft_ana->available() == false) {
+    if (fft_active == true && fft_ana->available() == false) {
         return false;
     }
     dprint(print_fft_values, name);
-    dprint(print_fft_values, " FFT Available, ");
-    dprint(print_fft_values, " last FFT reading was ");
+    dprint(print_fft_values, F(" FFT Available, "));
+    dprint(print_fft_values, F(" last FFT reading was "));
     dprint(print_fft_values, (uint32_t)last_fft_reading);
-    dprintln(print_fft_values, " ms ago\n");
+    dprintln(print_fft_values, F(" ms ago\n"));
     fft_tot_energy = 0.0;
+    // elapsedMicros t = 0;
     if (calculate_flux == true) { // only do this if we need to in order to save time
         // last_fft_vals = fft_vals;
         memcpy(last_fft_vals, fft_vals, sizeof(float)*NUM_FFT_BINS);
     }
+    // Serial.print("memcpy for fft_vals is: ");
+    // Serial.println(t);
     for (int i = 0; i < NUM_FFT_BINS; i++) {
         fft_vals[i] = fft_ana->read(i);
         raw_fft_vals[i] = fft_vals[i];
