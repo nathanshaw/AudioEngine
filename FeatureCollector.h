@@ -55,7 +55,7 @@ class FeatureCollector {
         double getRMSAvg(int channel){return rms_tracker[channel].getAvg();};
         double getDominateRMSAvg(){return getRMSAvg(dominate_channel);};
         bool   resetRMSAvg(int c);
-        void   resetDominateRMSAvg(){return resetRMSAvg(dominate_channel);};
+        void   resetDominateRMSAvg(){resetRMSAvg(dominate_channel);};
 
         void   printRMSVals();
 
@@ -91,7 +91,7 @@ class FeatureCollector {
         void   printPeakVals();
 
         //////////////// General ///////////////////////
-        bool update();
+        bool update(FFTManager1024 _fft[]);
         void setDominateChannel(int c){dominate_channel = c;};
         uint8_t calculateDominateChannel(FFTManager1024 _fft[]);
         uint8_t getDominateChannel() {return dominate_channel;};
@@ -121,7 +121,7 @@ class FeatureCollector {
         void autogainTrackAvgPeak(double target, double tolerance, double _min, double _max);
         void autogainTrackClipping(double target, double tolerance, double _min, double _max);
 
-        bool updateAutogain();
+        bool updateAutogain(FFTManager1024 _fft[]);
 
     private:
         /////////// Autogain Active //////////////////////
@@ -137,7 +137,7 @@ class FeatureCollector {
         uint32_t autogain_initial_delay = 60000 * 5;
         uint32_t autogain_update_rate   = 60000 * 3;
 
-        bool gain_good =                    false;
+        bool gain_good[2] =                    {false, false};
 
         int ag_rms_idx;
         bool ag_tracking_rms =                 false;
@@ -263,7 +263,7 @@ double FeatureCollector::getPeakAvg(int channel) {
     return avg;
 }
 
-bool FeatureCollector::updateAutogain() {
+bool FeatureCollector::updateAutogain(FFTManager1024 _fft[]) {
     // first thing is to see if it is time to actually update the gain or to
     // exit the function. This logic is different depending of if the
     // gain is expected to be good or bad.
@@ -278,21 +278,24 @@ bool FeatureCollector::updateAutogain() {
     if (last_autogain < autogain_initial_delay) {
         return false;
     }
-    // if the gain is within the accepted bounds, and less time than
-    // the update_rate has passed, the function will exit
-    if (gain_good == true && last_autogain < autogain_update_rate) {
-        return false;
-    }
+
     // if we made it this far then we are updating the gain
     // this is done here as it is more efficient due to the various
     // exiting conditions for the function
     dprintMinorDivide(print_autogain);
-    dprintln(print_autogain, F("\t\tAUTO GAIN INITIALISED"));
+    dprint(print_autogain, F("AUTO GAIN INITIALISED"));
 
     for (int channel = 0; channel < 2; channel++) {
+        // if the gain is within the accepted bounds, and less time than
+        // the update_rate has passed, the function will exit
+        if (gain_good[channel] == true && last_autogain < autogain_update_rate) {
+            return false;
+        } if (gain_good[channel] == false && last_autogain < autogain_update_rate * 0.2) {
+            return false;// if the gain is not good, we update the autogain five times faster than usual
+        }
         dprint(print_autogain, F("starting auto_gain for channel: "));
         dprintln(print_autogain, channel);
-        calculateAutogain(channel);
+        calculateAutogain(channel, _fft);
     }
     last_autogain = 0;
     return true;
@@ -341,13 +344,13 @@ double FeatureCollector::calculateAutogainCost(double val, int idx) {
 
     // if the value is below the min threshold. this results in the max cost of 1.0
     if (val < ag_min_thresh[idx]) {
-        dprintln(print_autogain, F("Increasing autogain by the max amount"));
+        dprint(print_autogain, F("Increasing autogain by the max amount "));
         return 1.0;
     }
 
     // if the value is above the max threshold. this results in the min cost of -1.0
     if (val > ag_max_thresh[idx]) {
-        dprintln(print_autogain, F("Decreasing autogain by the max amount")); 
+        dprint(print_autogain, F("Decreasing autogain by the max amount ")); 
         return -1.0;
     }
 
@@ -357,14 +360,14 @@ double FeatureCollector::calculateAutogainCost(double val, int idx) {
         // if thee gain needs to be raised
         cost = (val - ag_min_thresh[idx]) / (ag_low_thresh[idx] - ag_min_thresh[idx]);
         dprint(print_autogain, F("returning a cost of : "));
-        dprintln(print_autogain, cost);
+        dprint(print_autogain, cost);
         return cost;
     }
 
     if (val > ag_high_thresh[idx]) {
         cost = (1.0 - ((val - ag_high_thresh[idx]) / (ag_max_thresh[idx]- ag_high_thresh[idx]))) * -1;
         dprint(print_autogain, F("returning a cost of : "));
-        dprintln(print_autogain, cost);
+        dprint(print_autogain, cost);
         return cost;
     }
     // the program should never reach this point...
@@ -384,11 +387,11 @@ bool FeatureCollector::calculateAutogain(int channel, FFTManager1024 _fft[]) {
         // IMPORTANT - for the RMS feature, if the value is half
         // or less than the expected value then the gain needs to be
         // halfed or doubled accordingly.
-        dprint(print_autogain, F("rms adjusted the cost to: "));
+        // dprint(print_autogain, F("rms adjusted the cost to: "));
         double _avg = getRMSAvg(channel);
         cost += calculateAutogainCost(_avg, ag_rms_idx);
         // need to reset the RMS average calculations for next time
-        dprintln(print_autogain, cost);
+        // dprintln(print_autogain, cost);
         // we aree halfing or doubling the signal
         // so this would equate to a max adjustment of half the signal when 
         // decreasing or double the signal when increasing
@@ -454,7 +457,13 @@ bool FeatureCollector::calculateAutogain(int channel, FFTManager1024 _fft[]) {
         // dprintln(print_autogain, " / ");dprintln(print_autogain, update_rate);
         // if there is a cost, then the gain needs to be adjusted
         setGain(new_gain, channel);
+        // if the gain needed to be adjusted then it is not good
+        gain_good[channel] = false;
         return true;
+    } else {
+        // if the new gain is the same as the old gain then our
+        // gain is good and we dont have to check as often
+        gain_good[channel] = true;
     }
     // if we got to this point and have not updated the gain we will
     return false;
@@ -502,14 +511,14 @@ uint8_t FeatureCollector::calculateDominateChannel(FFTManager1024 _fft[]){
     if (clip_chan == -1) {
         dprintln(print_dom, F("Both microphones recorded the same number of clipped waveforms since the last reset"));
     } else {
-        dprint(print_dom, F("It was found that channel "));
+        dprint(print_dom, F("channel "));
         dprint(print_dom, clip_chan);
         dprintln(print_dom, F(" clipped less than other channels since last feature reset"));
     }
 
     ///////////////////////////// Dynamic Range ///////////////////////////////////////
     dprintMinorDivide(print_dom);
-    dprintln(print_dom, F("Now calculating the Dynamic range of each channel"));
+    // dprintln(print_dom, F("Now calculating the Dynamic range of each channel"));
     uint8_t dr_chan = 0;
     double max_diff = 0.0;
     for (int i = 0; i < num_channels; i++) {
@@ -521,10 +530,10 @@ uint8_t FeatureCollector::calculateDominateChannel(FFTManager1024 _fft[]){
         resetPeakAvg(i);
         dprint(print_dom, F(" and a RMS avg of "));
         double _rms = getRMSAvg(i);
-        dprintln(print_dom, _rms, 6);
+        dprint(print_dom, _rms, 6);
         resetRMSAvg(i);
 
-        dprint(print_dom, F("The channel has a diff of : "));
+        dprint(print_dom, F(" The channel has a diff of : "));
         dprintln(print_dom, _peak - _rms, 6);
         if ((_peak - _rms) > max_diff) {
             max_diff = _peak - _rms;
@@ -542,7 +551,7 @@ uint8_t FeatureCollector::calculateDominateChannel(FFTManager1024 _fft[]){
 
     ///////////////////////////// Spectral Centroid ///////////////////////////////////////
     dprintMinorDivide(print_dom);
-    dprintln(print_dom, F("Now calculating the Avg Centroid of each channel"));
+    // dprintln(print_dom, F("Now calculating the Avg Centroid of each channel"));
     uint8_t sc_chan = -1;
     double _cent = 100000;
     for (int i = 0; i < 2; i++) {
@@ -557,9 +566,9 @@ uint8_t FeatureCollector::calculateDominateChannel(FFTManager1024 _fft[]){
         }
         _fft[i].resetAvgCentroid();
     }
-    dprint(print_dom, F("The channel with the lowest centroid (and assumed to be less noisy, is : "));
-    dprintln(print_dom, sc_chan);
-    dprintMinorDivide(print_dom);
+    dprint(print_dom, F("channel "));
+    dprint(print_dom, sc_chan);
+    dprintln(print_dom, F("has the lowest centroid and is assumed to be less noisy"));
 
     ///////////////////////////////////////////////////////////////////////////
     uint8_t dom_channel = 0;
@@ -580,8 +589,9 @@ uint8_t FeatureCollector::calculateDominateChannel(FFTManager1024 _fft[]){
         // need different logic as 255 equates to no advantage detected
         dom_channel = 0;
     }
-    dprint(print_dom, F("\nThe dominate channel is: "));
-    dprintln(print_dom, dom_channel);
+    dprint(print_dom, "channel ");
+    dprint(print_dom, dom_channel);
+    dprint(print_dom, F(" is the dominate channel"));
     printMinorDivide();
     dominate_channel = dom_channel;
     return dom_channel;
@@ -829,8 +839,8 @@ void FeatureCollector::printPeakVals() {
 }
 
 /////////////////////////////////// UPDATE / INIT //////////////////////////////////////
-bool FeatureCollector::update() {
-    if (autogain_active){updateAutogain();};
+bool FeatureCollector::update(FFTManager1024 _fft[]) {
+    if (autogain_active){updateAutogain(_fft);};
     if (microphone_active[0] + microphone_active[1] > 0) {
         if (last_update_timer > fc_update_rate) {
             for (int i = 0; i < num_rms_anas; i++) {

@@ -300,7 +300,7 @@ double FFTManager1024::getAvgCentroid(){
 
 void FFTManager1024::resetAvgCentroid(){
     // a true will reset the average
-    return cent_tracker.getRAvg(true);
+    cent_tracker.getRAvg(true);
 }
 
 /////////////// Calculate Features //////////////////////////////
