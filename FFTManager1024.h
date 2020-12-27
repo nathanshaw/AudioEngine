@@ -44,6 +44,7 @@ class FFTManager1024 {
         double getROff(){return roff;};
 
         double getFlux();
+        double getScaledFlux();
 
         void setupCentroid(bool v, float min, float max);
 
@@ -280,6 +281,13 @@ double FFTManager1024::getFlux() {
     dprint(print_flux_values, F("flux: "));
     dprintln(print_flux_values, flux);
     return flux;
+}
+
+double FFTManager1024::getScaledFlux() {
+    // calculateFFT();
+    dprint(print_flux_values, F("scaledflux: "));
+    dprintln(print_flux_values, flux_tracker.getScaled());
+    return flux_tracker.getScaled();
 }
 
 double FFTManager1024::calculateROff() {
