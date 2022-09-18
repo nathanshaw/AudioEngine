@@ -3,7 +3,7 @@
 
 #define NUM_FFT_BINS 512
 
-#include <ValueTrackerDouble.h>
+#include "../ValueTracker/ValueTrackerDouble.h"
 #include <Audio.h>
 
 // TODO - need to add oversamping option

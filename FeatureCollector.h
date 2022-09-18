@@ -2,8 +2,8 @@
 #define __FEATURE_COLLECTOR_H__
 
 #include <Audio.h>
-#include <NeopixelManager.h>
-#include <ValueTrackerDouble.h>
+#include "../NeopixelManager/NeopixelManager.h"
+#include "../ValueTracker/ValueTrackerDouble.h"
 
 
 #ifndef PEAK_LOG_RESET_MIN
