@@ -17,8 +17,8 @@ class FFTManager1024 {
         void   printFFTVals();
 
         // getters
-        float getFFTRangeByIdx(uint16_t s, uint16_t e);
-        float getFFTRangeByFreq(uint32_t s, uint32_t e);
+        double getFFTRangeByIdx(uint16_t s, uint16_t e);
+        double getFFTRangeByFreq(uint32_t s, uint32_t e);
         uint16_t    getHighestEnergyIdx(int start, int end);
         uint16_t    getHighestEnergyIdx();
         uint16_t    getHighestEnergyIdx(float array[], int start, int end);
@@ -239,19 +239,15 @@ float FFTManager1024::getFFTTotalEnergy() {
 }
 
 
-float FFTManager1024::getFFTRangeByIdx(uint16_t s, uint16_t e) {
+double FFTManager1024::getFFTRangeByIdx(uint16_t s, uint16_t e) {
     // calculateFFT();
     if (fft_active) {
-        float sum = 0.0;
-        for (int i = s; i <= e; i++){
-            sum += fft_vals[i];
-        }
-        return sum / (e - s + 1);
+        return fft_ana->read(s, e);;
     }
     return 0.0;
 }
 
-float FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
+double FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
     // calculateFFT();
     if (fft_active) {
         uint16_t start_idx = (uint16_t)(s / 43);
@@ -318,14 +314,17 @@ double FFTManager1024::calculateCentroid() {
     // first scale the bins
     for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         // take the magnitude of all the bins
-        // and multiply if by the mid frequency of the bin
-        // then all it to the total cent value
         mags += raw_fft_vals[i];
     }
+    // and multiply it by the mid frequency of the bin
+    // then all it to the total cent value
     for (int i = centroid_min_bin; i < centroid_max_bin; i++) {
         c += (raw_fft_vals[i] / mags) * getBinsMidFreq1024(i);
     }
     centroid = c;
+    // update all centroid tracking values such as averages, minimums, and maximums
+    // as well as a centroid value which is scaled 0.0 to 1.0 according to the
+    // minimum and maximum value
     cent_tracker.update();
     dprint(print_centroid_values, F("centroid : "));
     dprintln(print_centroid_values, centroid);
@@ -386,7 +385,7 @@ bool FFTManager1024::update() {
                 fft_max_vals[i] = fft_vals[i];
             } else {
                 // ensure that the max values decay over time to prevent issues
-                fft_max_vals[i] = fft_max_vals[i] * 0.995;
+                fft_max_vals[i] = fft_max_vals[i] * 0.99995;
                 // then make sure that the adjusted value is not less than the floor
                 if (fft_max_vals[i] < whitening_floor) {
                     fft_max_vals[i] = whitening_floor;
@@ -396,7 +395,7 @@ bool FFTManager1024::update() {
         }
     }
     for (int i = min_bin; i < max_bin; i++) {
-        fft_tot_energy += fft_vals[i];
+        fft_tot_energy += raw_fft_vals[i];
     }
     if (calculate_centroid == true) {calculateCentroid();};
     if (calculate_centroid == true && smooth_centroid == true) {

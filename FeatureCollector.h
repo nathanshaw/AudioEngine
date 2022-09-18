@@ -72,9 +72,9 @@ class FeatureCollector {
         double getDominatePeakPosDelta(){return peak_tracker[dominate_channel].getPosDelta();};
 
         ////////////////// Avg
-        double getPeakAvg(int channel);
+        double getPeakAvg(int channel, bool print);
 
-        double getDominatePeakAvg(){return getPeakAvg(dominate_channel);};
+        double getDominatePeakAvg(){return getPeakAvg(dominate_channel, false);};
         void   resetPeakAvg(int channel);
         void   resetDominatePeakAvg(){return resetPeakAvg(dominate_channel);};
 
@@ -255,11 +255,13 @@ void FeatureCollector::linkRMS(AudioAnalyzeRMS *r, bool print) {
     rms_active = true;
 };
 
-double FeatureCollector::getPeakAvg(int channel) {
+double FeatureCollector::getPeakAvg(int channel, bool print) {
     double avg;
     avg = peak_tracker[channel].getAvg();
-    Serial.print(F("getPeakAvg() is returning a peak average of :"));
-    Serial.println(avg);
+    if (print){
+       Serial.print(F("getPeakAvg() is returning a peak average of :"));
+       Serial.println(avg);
+    }
     return avg;
 }
 
@@ -411,8 +413,8 @@ bool FeatureCollector::calculateAutogain(int channel, FFTManager1024 _fft[]) {
     ////////////////////// On Ratio ////////////////////////////////
     if (ag_tracking_peak == true) {
         dprint(print_autogain, F("Peak Average is                   : "));
-        cost += calculateAutogainCost(getPeakAvg(channel), ag_peak_idx);
-        dprintln(print_autogain, getPeakAvg(channel));
+        cost += calculateAutogainCost(getPeakAvg(channel, false), ag_peak_idx);
+        dprintln(print_autogain, getPeakAvg(channel, false));
         dprint(print_autogain, F("Peak average adjusted the cost to : "));
         dprintln(print_autogain, cost);
         resetPeakAvg(channel);
@@ -525,7 +527,7 @@ uint8_t FeatureCollector::calculateDominateChannel(FFTManager1024 _fft[]){
         dprint(print_dom, F("channel "));
         dprint(print_dom, i);
         dprint(print_dom, F(" has a Peak avg of "));
-        double _peak = getPeakAvg(i);
+        double _peak = getPeakAvg(i, false);
         dprint(print_dom, _peak, 6);
         resetPeakAvg(i);
         dprint(print_dom, F(" and a RMS avg of "));
