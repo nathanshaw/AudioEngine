@@ -3,7 +3,7 @@
 
 #define NUM_FFT_BINS 512
 
-#include "../ValueTracker/ValueTrackerDouble.h"
+#include <ValueTrackerDouble.h>
 #include <Audio.h>
 
 // TODO - need to add oversamping option
@@ -83,7 +83,7 @@ class FFTManager1024 {
 
         ///////////////////// General ////////////////////////////////
         String name =                   "";
-        bool fft_active =               true;
+        bool fft_active =               false;
         AudioAnalyzeFFT1024             *fft_ana;
 
         float raw_fft_vals[NUM_FFT_BINS];
@@ -361,6 +361,10 @@ double FFTManager1024::getCentroid(uint16_t min, uint16_t max) {
 }
 
 bool FFTManager1024::update() {
+    if (fft_active == false) {
+        Serial.println("ERROR - FFTManager is not active...");
+        return false;
+    }
     if (fft_active == true && fft_ana->available() == false) {
         return false;
     }
