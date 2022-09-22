@@ -366,6 +366,8 @@ bool FFTManager1024::update() {
         return false;
     }
     if (fft_active == true && fft_ana->available() == false) {
+        dprint(print_fft_values, name);
+        dprintln(print_fft_values, F(" FFT not available"));
         return false;
     }
     dprint(print_fft_values, name);
