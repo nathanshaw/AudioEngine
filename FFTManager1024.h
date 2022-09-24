@@ -2,6 +2,7 @@
 #define __FFTManager1024_H__
 
 #define NUM_FFT_BINS 512
+#define FLUX_SCALER  1000000
 
 #include <ValueTrackerDouble.h>
 #include <Audio.h>
@@ -262,10 +263,19 @@ double FFTManager1024::getFFTRangeByFreq(uint32_t s, uint32_t e) {
 
 double FFTManager1024::calculateFlux() {
     double f = 0.0;
+    // only conduct calculation if FFT is not NAN
     for (int i = min_bin; i < max_bin; i++) {
-        f += pow((fft_vals[i] - last_fft_vals[i]), 2);
+        // has to be raw fft vals, as standard fft vals have
+        // adaptive whitening applied...
+        if (isnan(raw_fft_vals[i]) || isnan(last_fft_vals[i])){
+            // dprint(print_flux_values, i); 
+            // dprintln(print_flux_values, " - WARNING!!!! Flux returned NAN");
+        } else {
+            f += (pow((raw_fft_vals[i] - last_fft_vals[i]), 2) * FLUX_SCALER);
+        }
     }
-    if (f != 0.0) {
+    if (f != flux) {
+        dprint(print_flux_values, "new flux value: "); dprintln(print_flux_values, f, 8);
         flux = f;
         flux_tracker.update();
     }
