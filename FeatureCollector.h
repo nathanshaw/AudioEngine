@@ -452,7 +452,7 @@ bool FeatureCollector::calculateAutogain(int channel, FFTManager1024 _fft[]) {
         // this cost value tells us if gain adjustment is needed, if the value
         // is below 0.0 then the gain needs to be lowered, if the value is above
         // 1.0 then the gain needs to be raised.
-        dprint(print_autogain, F("updating gain from "));dprint(print_autogain, gain[channel]);dprint(print_autogain, " to ");
+        dprint(print_autogain, F("updating gain from "));dprint(print_autogain, gain[channel]);dprint(print_autogain, F(" to "));
         dprint(print_autogain, new_gain);
         gain[channel] = new_gain;
         dprint(print_autogain, F(" with a cost of "));dprintln(print_autogain, cost);// dprint(print_autogain, " auto_gain timer");dprint(print_autogain, last_autogain);
